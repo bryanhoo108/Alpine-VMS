@@ -27,6 +27,14 @@ lprContract('mock', async () => ({
 }));
 
 describe('MockSapAdapter sample scenarios', () => {
+  it('never dates sample data in the future, even early in the morning', async () => {
+    const early = new Date('2026-10-21T00:30:00+08:00');
+    const sap = new MockSapAdapter({ now: () => early });
+    for (const s of await sap.listOpenSdos()) {
+      expect(s.updatedAt.getTime()).toBeLessThan(early.getTime());
+    }
+  });
+
   it('does not list the closed SDO', async () => {
     const sap = new MockSapAdapter({ now });
     expect((await sap.listOpenSdos()).map((s) => s.sdoNo)).not.toContain('5014');
@@ -112,6 +120,21 @@ describe('MockSapAdapter sample scenarios', () => {
       checkerName: 'Checker 1',
       checkedAt: NOW,
     });
+  });
+
+  it('closes an SDO on request', async () => {
+    const sap = new MockSapAdapter({ now });
+    sap.setSdoStatus('5001', 'closed');
+    expect((await sap.listOpenSdos()).map((s) => s.sdoNo)).not.toContain('5001');
+  });
+
+  it('resets to fresh sample data', async () => {
+    const sap = new MockSapAdapter({ now });
+    sap.createDo(['5005']);
+    sap.setSdoStatus('5001', 'closed');
+    sap.reset();
+    expect(await sap.getDosForSdos(['5005'])).toEqual([]);
+    expect((await sap.getSdo('5001'))?.status).toBe('open');
   });
 
   it('can go offline and back', async () => {

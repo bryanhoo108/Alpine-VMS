@@ -14,6 +14,7 @@ const app = await buildApp(
     db: database.db,
     adapters: createAdapters({ ...adapterConfig, log: (line) => app.log.info(line) }),
     adapterConfig,
+    jobs: true,
   },
   { logger: true },
 );

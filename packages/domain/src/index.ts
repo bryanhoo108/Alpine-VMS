@@ -6,3 +6,5 @@ export * from './exitStatus.js';
 export * from './cardLifecycle.js';
 export * from './sdoChange.js';
 export * from './preRegistration.js';
+export * from './ticketMatching.js';
+export * from './sdoShortlist.js';

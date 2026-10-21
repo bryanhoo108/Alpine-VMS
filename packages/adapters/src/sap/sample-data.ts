@@ -82,10 +82,12 @@ export interface SapSampleData {
  * - the rest open with no DO yet
  */
 export function sapSampleData(now: Date): SapSampleData {
+  /** That many days ago at `hour`, but never later than an hour before now. */
   const daysAgo = (d: number, hour = 9) => {
     const t = new Date(now.getTime() - d * DAY);
     t.setHours(hour, 0, 0, 0);
-    return t;
+    const latest = now.getTime() - 3_600_000;
+    return t.getTime() > latest ? new Date(latest) : t;
   };
   const sdo = (
     sdoNo: string,

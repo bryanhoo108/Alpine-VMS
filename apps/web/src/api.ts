@@ -35,6 +35,8 @@ async function request<T>(
 export const api = {
   get: <T>(url: string) => request<T>('GET', url),
   post: <T>(url: string, body?: unknown) => request<T>('POST', url, body),
+  put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
+  del: <T>(url: string) => request<T>('DELETE', url),
   upload: <T>(url: string, blob: Blob) => request<T>('POST', url, blob),
 };
 
@@ -95,3 +97,99 @@ export interface GateInResponse {
 }
 
 export const photoUrl = (id: string) => `/api/photos/${id}`;
+
+// --- Office (clerk) ------------------------------------------------------------
+
+export interface TripSummary {
+  id: string;
+  tripNo: string;
+  type: 'outbound' | 'inbound';
+  plate: string;
+  transporterName: string | null;
+  gateInAt: string;
+  preAdvised: boolean;
+  sdoNos: string[];
+  stage: {
+    matched: boolean;
+    weighedIn: boolean;
+    weighedOut: boolean;
+    checked: 'approve' | 'reject' | null;
+    doCount: number;
+  };
+  alertLevel: 'red' | 'amber' | null;
+}
+
+export interface SdoLine {
+  lineNo: number;
+  size: string;
+  spec: string;
+  length: string;
+  pieces: number;
+}
+
+export interface SdoView {
+  sdoNo: string;
+  customerName: string | null;
+  status: string | null;
+  docDate: string | null;
+  lines: SdoLine[];
+}
+
+export interface OfficeAlert {
+  id: string;
+  type: string;
+  label: string;
+  level: AlertLevel;
+  detail: Record<string, string> | null;
+  raisedAt: string;
+  clearedAt: string | null;
+  clearReason: string | null;
+  tripId?: string | null;
+  tripNo?: string | null;
+  plate?: string | null;
+}
+
+export interface TripDetail {
+  id: string;
+  tripNo: string;
+  type: 'outbound' | 'inbound';
+  status: 'on_site' | 'closed';
+  plate: string;
+  gateInAt: string;
+  gateInBy: string | null;
+  transporterId: string | null;
+  transporterName: string | null;
+  driver: { name: string | null; icLast4: string | null } | null;
+  preAdvised: boolean;
+  photos: { id: string; kind: 'plate' | 'ic' | 'document' | 'load' }[];
+  sdos: (SdoView & { source: 'pre_registration' | 'clerk'; linkedAt: string; changed: boolean })[];
+  shortlist: (SdoView & { reason: 'on_ticket' | 'usual_customer' | 'open' })[];
+  tickets: {
+    ticketNo: string;
+    plate: string;
+    plateDiffers: boolean;
+    sdoNos: string[];
+    weighInAt: string | null;
+    weighOutAt: string | null;
+  }[];
+  alerts: OfficeAlert[];
+}
+
+export interface PreRegRow {
+  id: string;
+  plate: string;
+  expectedDate: string;
+  sdoNos: string[];
+  transporterId: string | null;
+  transporterName: string | null;
+  note: string | null;
+  status: 'expected' | 'late' | 'arrived' | 'cleared';
+  tripNo: string | null;
+  clearReason: string | null;
+}
+
+export interface OfficeLists {
+  transporters: { id: string; name: string }[];
+  openSdos: { sdoNo: string; customerName: string; docDate: string }[];
+  today: string;
+}

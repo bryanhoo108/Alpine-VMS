@@ -13,6 +13,7 @@ export async function signInWithPin(page: Page, displayName: string) {
   await page.getByRole('button', { name: displayName }).click();
   for (const d of PIN) await page.getByRole('button', { name: d, exact: true }).click();
   await page.getByRole('button', { name: 'OK' }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 }
 
 /** The camera at a gate reads a plate (mock LPR). */
@@ -60,4 +61,20 @@ export async function expectGuardLayout(page: Page) {
   expect(m.scrollW, 'page scrolls sideways').toBeLessThanOrEqual(m.clientW);
   expect(m.small, 'buttons smaller than 44px').toEqual([]);
   expect(m.offscreen, 'buttons or alerts off the screen').toEqual([]);
+}
+
+/** Office screens may scroll vertically, but nothing may stick out sideways. */
+export async function expectNoSidewaysOverflow(page: Page) {
+  const wide = await page.evaluate(() =>
+    [...document.querySelectorAll('button, input, select, table, [role="alert"]')]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && (r.right > innerWidth + 1 || r.left < -1);
+      })
+      .map(
+        (el) =>
+          el.getAttribute('aria-label') ?? el.tagName + ' ' + (el.textContent ?? '').slice(0, 30),
+      ),
+  );
+  expect(wide, 'controls sticking out sideways').toEqual([]);
 }

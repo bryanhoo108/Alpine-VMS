@@ -40,6 +40,29 @@ Sign in as **Entry Guard**. The purple **Test** button (bottom left, mock mode o
 - `BQL 1187`: on the watchlist, red screen and alarm
 - any other plate: new truck, guard picks the company or skips
 
+### Trying the Office screen (clerk)
+
+Use **Office login** with user `clerk` and `SEED_DEMO_PASSWORD`.
+
+- **Trucks on site:** pick a truck to see gate photos, link SDOs from the shortlist (SDOs on its CWIS ticket first, then customers this company usually carries, then newest), set the company and driver (last 4 IC digits only). In mock mode, **Test weigh in / Wrong plate / Test weigh out** stand in for the weighbridge.
+- **Pre-registered:** add plate + SDO(s) + date before the truck comes. Late ones stay until cleared with a reason.
+- **Alerts:** open amber and red alerts, red first; clearing needs a reason (kept in the audit log).
+
+Supervisors land on Office and can switch to Gate In from the title bar.
+
+### Background jobs
+
+The server runs these itself (no extra service to install); each retries on its own if SAP or CWIS is down, and the gate never waits on them:
+
+| Job                | Every                               | What                                                                                                 |
+| ------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `sdo-refresh`      | 3 min (full about hourly)           | Copy open SDOs from SAP into the local cache                                                         |
+| `cwis-poll`        | 30 s                                | Read new CWIS tickets, link them to trucks, flag plate mismatches                                    |
+| `cwis-push`        | 10 s, and ~1 s after a trip changes | Send truck details (plate, card, company, driver, SDOs, trip number) to CWIS, retrying with back-off |
+| `transporter-sync` | 1 h                                 | Copy transporters from SAP business partners                                                         |
+
+The plan named pg-boss for these; a small in-process scheduler over the `cwis_pushes` / `sap_writes` outbox tables does the same job with one less dependency.
+
 ### Production
 
 `pnpm build`, then run the server with `WEB_DIR=apps/web/dist` so one process serves the API and the screens on the LAN.

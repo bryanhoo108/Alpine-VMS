@@ -49,6 +49,13 @@ export class MockCwisAdapter implements CwisAdapter {
 
   // --- Controls (dev panel and tests) ---------------------------------------
 
+  /** Forget all tickets and pending trucks (browser tests reset between cases). */
+  reset() {
+    this.tickets.clear();
+    this.pending.clear();
+    this.offline = false;
+  }
+
   pendingTrucks(): PendingTruck[] {
     return [...this.pending.values()].map((p) => structuredClone(p));
   }

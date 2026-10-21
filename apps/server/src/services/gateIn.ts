@@ -3,7 +3,6 @@
  * Records the trip and raises alerts; it never refuses a truck. The only
  * refusal is a card problem, and the guard simply taps another card.
  */
-import type { Adapters, PendingTruck } from '@vms/adapters';
 import {
   findPreRegistration,
   gateInAlerts,
@@ -16,11 +15,8 @@ import {
   type RaisedAlert,
 } from '@vms/domain';
 import { and, asc, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
-import type { Config } from '../config.js';
-import type { Db } from '../db/client.js';
 import {
   cards,
-  cwisPushes,
   photos,
   plateReads,
   preRegistrations,
@@ -30,19 +26,14 @@ import {
   vehicles,
   watchlist,
 } from '../db/schema.js';
-import type { EventBus } from '../events.js';
 import { siteDate } from '../time.js';
 import { deliverAlerts, recordAlerts } from './alerts.js';
+import { queueCwisPush } from './cwis.js';
+import type { ServiceDeps } from './deps.js';
 import { audit, type DbOrTx } from './audit.js';
 import type { Site } from './sites.js';
 
-export interface ServiceDeps {
-  db: Db;
-  adapters: Adapters;
-  events: EventBus;
-  config: Config;
-  now: () => Date;
-}
+export type { ServiceDeps } from './deps.js';
 
 /** A camera read older than this is no longer offered to the guard. */
 export const PLATE_READ_FRESH_MINUTES = 15;
@@ -356,23 +347,8 @@ export async function gateIn(
 
     const alertRows = await recordAlerts(tx, site.id, trip!.id, raised, now);
 
-    const transporterName = transporterId
-      ? ((
-          await tx
-            .select({ name: transporters.name })
-            .from(transporters)
-            .where(eq(transporters.id, transporterId))
-        )[0]?.name ?? null)
-      : null;
-    const pending: PendingTruck = {
-      tripNo,
-      cardNo: card.cardNo,
-      plate,
-      transporterName,
-      driverName: null,
-      sdoNos: [...sdoNos],
-    };
-    await tx.insert(cwisPushes).values({ siteId: site.id, tripId: trip!.id, payload: pending });
+    // Carry-forward to CWIS is queued; the gate never waits on CWIS.
+    await queueCwisPush(tx, site.id, trip!.id, now);
 
     await audit(tx, {
       siteId: site.id,

@@ -8,13 +8,16 @@ import type { Config } from './config.js';
 import type { Db } from './db/client.js';
 import { EventBus } from './events.js';
 import { FileStore } from './files.js';
+import { defineJobs, startJobs, type JobRunner } from './jobs.js';
 import { authRoutes } from './routes/auth.js';
+import { clerkRoutes } from './routes/clerk.js';
 import { devRoutes } from './routes/dev.js';
 import { eventRoutes } from './routes/events.js';
 import { gateRoutes } from './routes/gate.js';
 import { healthRoutes } from './routes/health.js';
 import { photoRoutes } from './routes/photos.js';
 import { recordPlateRead } from './services/plateReads.js';
+import { ServiceError } from './services/errors.js';
 import { getSite, type Site } from './services/sites.js';
 
 export interface AppDeps {
@@ -23,6 +26,8 @@ export interface AppDeps {
   adapters: Adapters;
   adapterConfig: AdapterConfig;
   now?: () => Date;
+  /** Run background jobs (SAP/CWIS sync). Off in tests, which call services directly. */
+  jobs?: boolean;
 }
 
 /** Everything routes and services need, built once at start. */
@@ -31,6 +36,7 @@ export interface AppContext extends AppDeps {
   events: EventBus;
   files: FileStore;
   now: () => Date;
+  jobRunner: JobRunner | null;
 }
 
 export async function buildApp(
@@ -55,7 +61,18 @@ export async function buildApp(
     events: new EventBus(),
     files: new FileStore(deps.config.filesDir),
     now: deps.now ?? (() => new Date()),
+    jobRunner: null,
   };
+
+  app.setErrorHandler((err: Error & { validation?: unknown; statusCode?: number }, _req, reply) => {
+    if (err instanceof ServiceError) return reply.code(err.status).send({ error: err.code });
+    if (err.validation) return reply.code(400).send({ error: 'BAD_REQUEST', message: err.message });
+    if (err.statusCode && err.statusCode < 500) {
+      return reply.code(err.statusCode).send({ error: 'BAD_REQUEST', message: err.message });
+    }
+    app.log.error(err);
+    return reply.code(500).send({ error: 'SERVER_ERROR' });
+  });
 
   await app.register(cookie);
   app.decorateRequest('user', null);
@@ -72,8 +89,14 @@ export async function buildApp(
   await app.register(photoRoutes, ctx);
   await app.register(gateRoutes, ctx);
   await app.register(eventRoutes, ctx);
-  if (deps.adapters.mocks.lpr)
-    await app.register(devRoutes, { ...ctx, lpr: deps.adapters.mocks.lpr });
+  await app.register(clerkRoutes, ctx);
+  const { lpr, cwis, sap } = deps.adapters.mocks;
+  if (lpr && cwis && sap) await app.register(devRoutes, { ...ctx, mocks: { lpr, cwis, sap } });
+
+  if (deps.jobs) {
+    ctx.jobRunner = startJobs(defineJobs(ctx, site), ctx.events, app.log);
+    app.addHook('onClose', async () => ctx.jobRunner?.stop());
+  }
 
   // Camera reads arrive from the LPR adapter (webhook for real cameras, dev panel for the mock).
   const off = deps.adapters.lpr.onPlateEvent(async (event) => {

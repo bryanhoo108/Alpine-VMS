@@ -28,7 +28,7 @@ export class SapUnavailableError extends Error {
 /** In-memory SAP with sample data, plus controls for the dev panel and tests. */
 export class MockSapAdapter implements SapAdapter {
   private readonly now: Clock;
-  private readonly partners: SapBusinessPartner[];
+  private readonly partners: SapBusinessPartner[] = [];
   private readonly sdos = new Map<string, SapSdo>();
   private readonly dos = new Map<string, SapDo>();
   private readonly udfs = new Map<string, DoUdfs>();
@@ -41,10 +41,21 @@ export class MockSapAdapter implements SapAdapter {
 
   constructor(opts: { now?: Clock; data?: SapSampleData } = {}) {
     this.now = opts.now ?? systemClock;
-    const data = opts.data ?? sapSampleData(this.now());
-    this.partners = structuredClone(data.partners);
+    this.load(opts.data ?? sapSampleData(this.now()));
+  }
+
+  private load(data: SapSampleData) {
+    this.partners.splice(0, this.partners.length, ...structuredClone(data.partners));
+    this.sdos.clear();
+    this.dos.clear();
+    this.udfs.clear();
+    this.appliedKeys.clear();
+    this.appliedWrites.length = 0;
     for (const s of data.sdos) this.sdos.set(s.sdoNo, structuredClone(s));
     for (const d of data.dos) this.dos.set(d.doNo, structuredClone(d));
+    this.nextDoNo = 8100;
+    this.failuresLeft = 0;
+    this.offline = false;
   }
 
   // --- SapAdapter -----------------------------------------------------------
@@ -139,6 +150,19 @@ export class MockSapAdapter implements SapAdapter {
     const line = sdo?.lines.find((l) => l.lineNo === lineNo);
     if (!sdo || !line) throw new Error(`SDO ${sdoNo} line ${lineNo} not found`);
     Object.assign(line, changes);
+    sdo.updatedAt = this.now();
+  }
+
+  /** Back to fresh sample data (browser tests reset between cases). */
+  reset() {
+    this.load(sapSampleData(this.now()));
+  }
+
+  /** Simulate SAP closing (fully delivering) or reopening an SDO. */
+  setSdoStatus(sdoNo: string, status: SapSdo['status']) {
+    const sdo = this.sdos.get(sdoNo);
+    if (!sdo) throw new Error(`SDO ${sdoNo} not found`);
+    sdo.status = status;
     sdo.updatedAt = this.now();
   }
 

@@ -7,6 +7,9 @@ import { adapterConfigFromEnv, createAdapters } from '@vms/adapters';
 import { sql } from 'drizzle-orm';
 import { buildApp } from '../src/app.js';
 import { seed } from '../src/db/seed.js';
+import { EventBus } from '../src/events.js';
+import { refreshSdoCache } from '../src/services/sdoCache.js';
+import { getSite } from '../src/services/sites.js';
 import { createTestDb } from './helpers/testDb.js';
 import { testConfig } from './helpers/testConfig.js';
 
@@ -17,21 +20,22 @@ const PASSWORD = process.env.E2E_PASSWORD ?? 'e2e-password';
 const t = await createTestDb();
 const adapterConfig = adapterConfigFromEnv({});
 const adapters = createAdapters(adapterConfig);
-const reseed = () =>
-  seed(t.db, adapters.sap, {
+const config = testConfig(t.url, { WEB_DIR: new URL('../../web/dist', import.meta.url).pathname });
+const reseed = async () => {
+  adapters.mocks.sap!.reset();
+  adapters.mocks.cwis!.reset();
+  await seed(t.db, adapters.sap, {
     siteCode: 'APM',
     demoPin: PIN,
     demoPassword: PASSWORD,
     now: new Date(),
   });
+  const deps = { db: t.db, adapters, events: new EventBus(), config, now: () => new Date() };
+  await refreshSdoCache(deps, await getSite(t.db, 'APM'), { full: true });
+};
 await reseed();
 
-const app = await buildApp({
-  config: testConfig(t.url, { WEB_DIR: new URL('../../web/dist', import.meta.url).pathname }),
-  db: t.db,
-  adapters,
-  adapterConfig,
-});
+const app = await buildApp({ config, db: t.db, adapters, adapterConfig });
 
 app.post('/__e2e/reset', async () => {
   const rows = await t.db.execute<{ tablename: string }>(
