@@ -13,8 +13,8 @@ export interface WeighInInput {
   plate: string;
   /** Card tapped at the weighbridge; picks up the pending truck (option A). */
   cardNo?: string;
-  /** SDO typed by the operator when there is no pending truck. */
-  sdoNo?: string;
+  /** SDOs entered by the operator when there is no pending truck. */
+  sdoNos?: string[];
 }
 
 /**
@@ -55,8 +55,8 @@ export class MockCwisAdapter implements CwisAdapter {
 
   /**
    * Weigh in. With option A the operator taps the card (or picks the plate)
-   * and CWIS fills the rest from the pending truck. A CWIS ticket holds one SDO;
-   * how multi-SDO trucks are ticketed is an open question for the vendor.
+   * and CWIS fills the rest from the pending truck. One ticket can carry
+   * several SDOs.
    */
   weighIn(input: WeighInInput): CwisTicket {
     const pending =
@@ -68,7 +68,7 @@ export class MockCwisAdapter implements CwisAdapter {
     const ticket: CwisTicket = {
       ticketNo: `WB${this.nextTicket++}`,
       plate: input.plate,
-      sdoNo: input.sdoNo ?? pending?.sdoNos[0] ?? null,
+      sdoNos: [...(input.sdoNos ?? pending?.sdoNos ?? [])],
       transporterName: pending?.transporterName ?? null,
       vmsTripNo: pending?.tripNo ?? null,
       weighInAt: at,

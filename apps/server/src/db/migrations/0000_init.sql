@@ -288,7 +288,7 @@ CREATE TABLE "weigh_tickets" (
 	"ticket_no" text NOT NULL,
 	"trip_id" uuid,
 	"plate" text NOT NULL,
-	"sdo_no" text,
+	"sdo_nos" text[] DEFAULT '{}' NOT NULL,
 	"transporter_name" text,
 	"vms_trip_no" text,
 	"weigh_in_at" timestamp with time zone,

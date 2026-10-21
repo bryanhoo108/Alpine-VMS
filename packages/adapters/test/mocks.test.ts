@@ -18,7 +18,7 @@ const now = () => clock;
 sapContract('mock', async () => ({ adapter: new MockSapAdapter({ now }), testDoNo: '8001' }));
 cwisContract('mock', async () => {
   const cwis = new MockCwisAdapter({ now });
-  cwis.weighIn({ plate: 'BKA 4321', sdoNo: '5005' });
+  cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['5005', '5006'] });
   return cwis;
 });
 lprContract('mock', async () => ({
@@ -124,6 +124,14 @@ describe('MockSapAdapter sample scenarios', () => {
 });
 
 describe('MockCwisAdapter', () => {
+  it('keeps several SDOs on one ticket when the operator enters them', () => {
+    const cwis = new MockCwisAdapter({ now });
+    expect(cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['5009', '5010'] }).sdoNos).toEqual([
+      '5009',
+      '5010',
+    ]);
+  });
+
   it('fills the ticket from the pending truck when the card is tapped (option A)', async () => {
     const cwis = new MockCwisAdapter({ now });
     await cwis.pushPendingTruck({
@@ -132,11 +140,11 @@ describe('MockCwisAdapter', () => {
       plate: 'WXY 1234',
       transporterName: 'Transporter One Logistics',
       driverName: null,
-      sdoNos: ['5005'],
+      sdoNos: ['5005', '5006'],
     });
     const t = cwis.weighIn({ plate: 'WXY 1234', cardNo: '04A1B2C3D40001' });
     expect(t).toMatchObject({
-      sdoNo: '5005',
+      sdoNos: ['5005', '5006'],
       vmsTripNo: 'T-261021-001',
       transporterName: 'Transporter One Logistics',
       weighOutAt: null,
@@ -162,7 +170,7 @@ describe('MockCwisAdapter', () => {
   it('creates an inbound ticket with no SDO, and records weigh-out', async () => {
     const cwis = new MockCwisAdapter({ now });
     const t = cwis.weighIn({ plate: 'BKA 4321' });
-    expect(t.sdoNo).toBeNull();
+    expect(t.sdoNos).toEqual([]);
     clock = new Date(NOW.getTime() + 30 * 60_000);
     const out = cwis.weighOut(t.ticketNo);
     clock = NOW;

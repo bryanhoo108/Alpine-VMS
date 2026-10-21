@@ -8,6 +8,7 @@ export function cwisContract(name: string, make: () => Promise<CwisAdapter>) {
       for (const t of await adapter.listTickets()) {
         expect(t.ticketNo).toMatch(/\S/);
         expect(t.plate).toMatch(/\S/);
+        expect(Array.isArray(t.sdoNos)).toBe(true);
         if (t.weighOutAt) expect(t.weighInAt).not.toBeNull();
       }
     });

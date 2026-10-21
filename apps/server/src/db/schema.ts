@@ -334,7 +334,11 @@ export const weighTickets = pgTable(
     ticketNo: text('ticket_no').notNull(),
     tripId: uuid('trip_id').references(() => trips.id),
     plate: text('plate').notNull(),
-    sdoNo: text('sdo_no'),
+    /** One ticket can carry several SDOs; empty for inbound coil. */
+    sdoNos: text('sdo_nos')
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     transporterName: text('transporter_name'),
     vmsTripNo: text('vms_trip_no'),
     weighInAt: ts('weigh_in_at'),

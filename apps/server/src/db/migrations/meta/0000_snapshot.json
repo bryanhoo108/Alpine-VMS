@@ -1,5 +1,5 @@
 {
-  "id": "9861ee23-4c25-4713-b522-ab3acaa453c5",
+  "id": "5b3a3589-98b0-4c6b-a4d0-61d4c9df5798",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2464,11 +2464,12 @@
           "primaryKey": false,
           "notNull": true
         },
-        "sdo_no": {
-          "name": "sdo_no",
-          "type": "text",
+        "sdo_nos": {
+          "name": "sdo_nos",
+          "type": "text[]",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'{}'"
         },
         "transporter_name": {
           "name": "transporter_name",

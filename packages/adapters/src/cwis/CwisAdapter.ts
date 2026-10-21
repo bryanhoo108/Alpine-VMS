@@ -8,7 +8,8 @@
 export interface CwisTicket {
   ticketNo: string;
   plate: string;
-  sdoNo: string | null;
+  /** SDOs on the ticket. One ticket can carry several SDOs; empty for inbound coil. */
+  sdoNos: string[];
   transporterName: string | null;
   /** VMS trip number, when the ticket was created from a pending truck (option A). */
   vmsTripNo: string | null;
