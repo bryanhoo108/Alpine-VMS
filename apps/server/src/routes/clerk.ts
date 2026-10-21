@@ -17,6 +17,7 @@ import {
   type NewPreRegistration,
 } from '../services/clerk.js';
 import { unlinkedTickets } from '../services/cwis.js';
+import { linkDo, unlinkDo } from '../services/dos.js';
 
 const uuid = { type: 'string', format: 'uuid' } as const;
 const idParams = { type: 'object', required: ['id'], properties: { id: uuid } } as const;
@@ -71,6 +72,44 @@ export const clerkRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
     },
     async (req) => {
       await unlinkSdo(ctx, ctx.site, currentUser(req).id, req.params.id, req.params.sdoNo);
+      return tripDetail(ctx, ctx.site, req.params.id);
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { doNo: string } }>(
+    '/api/clerk/trips/:id/dos',
+    {
+      ...office,
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          required: ['doNo'],
+          additionalProperties: false,
+          properties: { doNo: sdoNo },
+        },
+      },
+    },
+    async (req) => {
+      await linkDo(ctx, ctx.site, currentUser(req).id, req.params.id, req.body.doNo);
+      return tripDetail(ctx, ctx.site, req.params.id);
+    },
+  );
+
+  app.delete<{ Params: { id: string; doNo: string } }>(
+    '/api/clerk/trips/:id/dos/:doNo',
+    {
+      ...office,
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id', 'doNo'],
+          properties: { id: uuid, doNo: sdoNo },
+        },
+      },
+    },
+    async (req) => {
+      await unlinkDo(ctx, ctx.site, currentUser(req).id, req.params.id, req.params.doNo);
       return tripDetail(ctx, ctx.site, req.params.id);
     },
   );

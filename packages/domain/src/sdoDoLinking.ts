@@ -103,3 +103,69 @@ export function selectDosForTrip(input: DoSelectionInput): DoSelection {
     unlinkedSdosOnDos: [...unlinked],
   };
 }
+
+export interface TripForDoAssignment {
+  tripId: string;
+  gateInAt: Date;
+  sdoNos: readonly string[];
+  /** DOs the clerk unlinked from this trip: never auto-linked back. */
+  manualUnlinks: readonly string[];
+}
+
+export interface DoAssignment {
+  /** DOs with exactly one candidate truck: link automatically. */
+  assign: { doNo: string; tripId: string }[];
+  /** DOs that fit more than one truck on site: left for the clerk. */
+  ambiguous: { doNo: string; tripIds: string[] }[];
+}
+
+/**
+ * Decide which truck on site each new DO belongs to. A truck is a candidate
+ * for a DO when the DO was copied from one of its SDOs, was created at or
+ * after its gate in, and the clerk has not unlinked it. Already claimed DOs
+ * are skipped. Two trucks on the same SDO make the DO ambiguous: the system
+ * does not guess.
+ */
+export function assignDos(
+  trips: readonly TripForDoAssignment[],
+  dos: readonly DeliveryOrder[],
+  claims: ReadonlyMap<string, string>,
+): DoAssignment {
+  const result: DoAssignment = { assign: [], ambiguous: [] };
+  for (const d of dos) {
+    if (claims.has(d.doNo)) continue;
+    const sdos = sdosOfDo(d);
+    const candidates = trips.filter(
+      (t) =>
+        !t.manualUnlinks.includes(d.doNo) &&
+        d.createdAt.getTime() >= t.gateInAt.getTime() &&
+        sdos.some((s) => t.sdoNos.includes(s)),
+    );
+    if (candidates.length === 1)
+      result.assign.push({ doNo: d.doNo, tripId: candidates[0]!.tripId });
+    else if (candidates.length > 1) {
+      result.ambiguous.push({ doNo: d.doNo, tripIds: candidates.map((t) => t.tripId) });
+    }
+  }
+  return result;
+}
+
+/**
+ * Expected pieces for one SDO line on this truck. When the truck has a DO
+ * for that SDO, the DO says what was loaded (split delivery: part of the
+ * SDO; a line not on the DO: 0). Otherwise the SDO line is the reference.
+ */
+export function expectedPieces(
+  sdoNo: string,
+  lineNo: number,
+  sdoPieces: number,
+  tripDos: readonly (DeliveryOrder & { lines: readonly (DoLine & { pieces: number })[] })[],
+): { pieces: number; from: 'do' | 'sdo' } {
+  const covering = tripDos.filter((d) => d.lines.some((l) => l.baseSdoNo === sdoNo));
+  if (covering.length === 0) return { pieces: sdoPieces, from: 'sdo' };
+  const pieces = covering
+    .flatMap((d) => d.lines)
+    .filter((l) => l.baseSdoNo === sdoNo && l.baseLineNo === lineNo)
+    .reduce((sum, l) => sum + l.pieces, 0);
+  return { pieces, from: 'do' };
+}

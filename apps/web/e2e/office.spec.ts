@@ -131,3 +131,39 @@ test('supervisor switches between Office, Check and Gate In', async ({ page }) =
   await page.getByRole('button', { name: 'Gate In', pressed: false }).click();
   await expect(page.getByText('Waiting for truck')).toBeVisible();
 });
+
+test('DO from SAP links to the truck, goes to SAP, and the checker counts against it', async ({
+  page,
+}) => {
+  await signInWithPin(page, 'Entry Guard');
+  await gateIn(page, 'BJR 9102');
+  await page.getByRole('button', { name: 'Sign out' }).click();
+
+  await officeLogin(page);
+  const list = page.getByRole('list', { name: 'Trucks on site' });
+  await list.getByRole('button', { name: /BJR 9102/ }).click();
+  await page.getByRole('list', { name: 'SDO shortlist' }).getByText('SDO 5011').click();
+  await page.getByRole('button', { name: /^Link/ }).click();
+  await expect(page.getByTestId('linked-5011')).toBeVisible();
+  await expect(page.getByText('No DO yet')).toBeVisible();
+
+  // Logistics makes a part DO (half the pieces) in SAP.
+  await page.getByRole('button', { name: 'Test part DO' }).click();
+  const linked = page.getByRole('list', { name: 'Linked DOs' });
+  await expect(linked).toContainText('Found automatically');
+  await expect(linked).toContainText('In SAP'); // background job sent plate + gate-in
+  await expect(page.getByText('No DO yet')).toHaveCount(0);
+  await expectNoSidewaysOverflow(page);
+  await page.screenshot(shot('6-do'));
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signInWithPin(page, 'Checker 1');
+  await page
+    .getByRole('list', { name: 'Waiting for check' })
+    .getByRole('button', { name: /BJR 9102/ })
+    .click();
+  const line = page.getByTestId('line-5011#0');
+  await expect(line).toContainText('50'); // DO: half of the SDO's 100
+  await expect(line).toContainText('(SDO 100)');
+  await expect(page.getByText(/· DO \d+/)).toBeVisible();
+});

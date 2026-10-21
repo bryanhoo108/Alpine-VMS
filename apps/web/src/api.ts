@@ -172,7 +172,37 @@ export interface TripDetail {
     weighInAt: string | null;
     weighOutAt: string | null;
   }[];
+  dos: TripDos;
   alerts: OfficeAlert[];
+}
+
+export interface DoView {
+  doNo: string;
+  createdAt: string;
+  lines: {
+    lineNo: number;
+    itemCode: string;
+    pieces: number;
+    sdoNo: string | null;
+    sdoLineNo: number | null;
+  }[];
+}
+
+export interface TripDos {
+  linked: (DoView & {
+    source: 'auto' | 'clerk';
+    sap: {
+      status: 'pending' | 'done' | 'failed' | 'superseded';
+      attempts: number;
+      lastError: string | null;
+    } | null;
+  })[];
+  candidates: (DoView & {
+    reason: 'before_gate_in' | 'other_truck' | 'unlinked' | 'needs_clerk';
+    otherTripNo: string | null;
+  })[];
+  sdosWithoutDo: string[];
+  unlinkedSdosOnDos: string[];
 }
 
 export interface PreRegRow {
@@ -215,7 +245,8 @@ export interface CheckSdo {
   version: string | null;
   changed: boolean;
   changes: { lineNo: number; change: 'added' | 'removed' | 'changed' }[];
-  lines: SdoLine[];
+  doNos: string[];
+  lines: (SdoLine & { expected: number; from: 'do' | 'sdo' })[];
 }
 
 export interface CheckView {

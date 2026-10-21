@@ -15,6 +15,13 @@
       "when": 1792593653347,
       "tag": "0001_sdo_lines_at_link",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792594592253,
+      "tag": "0002_sap_write_trip",
+      "breakpoints": true
     }
   ]
 }

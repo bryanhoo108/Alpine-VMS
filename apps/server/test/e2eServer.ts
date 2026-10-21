@@ -35,7 +35,7 @@ const reseed = async () => {
 };
 await reseed();
 
-const app = await buildApp({ config, db: t.db, adapters, adapterConfig });
+const app = await buildApp({ config, db: t.db, adapters, adapterConfig, jobs: true });
 
 app.post('/__e2e/reset', async () => {
   const rows = await t.db.execute<{ tablename: string }>(

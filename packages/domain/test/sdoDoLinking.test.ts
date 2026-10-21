@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assignDos,
+  expectedPieces,
   sdosOfDo,
   selectDosForTrip,
   type DeliveryOrder,
@@ -131,5 +133,124 @@ describe('selectDosForTrip', () => {
     expect(select({ sdoNos: ['5001'], dos: [delivery('8001', ['5001'], GATE_IN)] }).doNos).toEqual([
       '8001',
     ]);
+  });
+});
+
+describe('assignDos', () => {
+  const trip = (tripId: string, sdoNos: string[], gateInMin = 0, manualUnlinks: string[] = []) => ({
+    tripId,
+    gateInAt: after(gateInMin),
+    sdoNos,
+    manualUnlinks,
+  });
+
+  it('links a DO to the one truck carrying its SDO', () => {
+    const r = assignDos(
+      [trip('T1', ['5001']), trip('T2', ['5002'])],
+      [delivery('8001', ['5001'])],
+      new Map(),
+    );
+    expect(r).toEqual({ assign: [{ doNo: '8001', tripId: 'T1' }], ambiguous: [] });
+  });
+
+  it('split: both DOs of one SDO go to the one truck', () => {
+    const r = assignDos(
+      [trip('T1', ['5001'])],
+      [delivery('8001', ['5001']), delivery('8002', ['5001'])],
+      new Map(),
+    );
+    expect(r.assign.map((a) => a.doNo)).toEqual(['8001', '8002']);
+  });
+
+  it('combined: a DO for two SDOs on one truck links once', () => {
+    const r = assignDos(
+      [trip('T1', ['5003', '5004'])],
+      [delivery('8005', ['5003', '5004'])],
+      new Map(),
+    );
+    expect(r.assign).toEqual([{ doNo: '8005', tripId: 'T1' }]);
+  });
+
+  it('two trucks on the same SDO: the DO is left for the clerk', () => {
+    const r = assignDos(
+      [trip('T1', ['5001']), trip('T2', ['5001'], 5)],
+      [delivery('8001', ['5001'])],
+      new Map(),
+    );
+    expect(r).toEqual({ assign: [], ambiguous: [{ doNo: '8001', tripIds: ['T1', 'T2'] }] });
+  });
+
+  it('a DO older than the second truck belongs to the first', () => {
+    const r = assignDos(
+      [trip('T1', ['5001']), trip('T2', ['5001'], 60)],
+      [delivery('8001', ['5001'], after(30))],
+      new Map(),
+    );
+    expect(r.assign).toEqual([{ doNo: '8001', tripId: 'T1' }]);
+  });
+
+  it('skips claimed DOs and DOs the clerk unlinked from the truck', () => {
+    const r = assignDos(
+      [trip('T1', ['5001'], 0, ['8002'])],
+      [delivery('8001', ['5001']), delivery('8002', ['5001'])],
+      new Map([['8001', 'T9']]),
+    );
+    expect(r).toEqual({ assign: [], ambiguous: [] });
+  });
+
+  it('ignores DOs created before every truck came in', () => {
+    const r = assignDos(
+      [trip('T1', ['5001'])],
+      [delivery('8001', ['5001'], after(-60))],
+      new Map(),
+    );
+    expect(r).toEqual({ assign: [], ambiguous: [] });
+  });
+});
+
+describe('expectedPieces', () => {
+  const doWith = (doNo: string, lines: [string, number, number][]) => ({
+    doNo,
+    createdAt: after(10),
+    lines: lines.map(([sdo, line, pieces], i) => ({
+      lineNo: i,
+      baseSdoNo: sdo,
+      baseLineNo: line,
+      pieces,
+    })),
+  });
+
+  it('uses the SDO when the truck has no DO for it', () => {
+    expect(expectedPieces('5001', 0, 400, [])).toEqual({ pieces: 400, from: 'sdo' });
+  });
+
+  it('uses the DO pieces on a split delivery', () => {
+    expect(expectedPieces('5001', 0, 400, [doWith('8001', [['5001', 0, 200]])])).toEqual({
+      pieces: 200,
+      from: 'do',
+    });
+  });
+
+  it('adds up two DOs on the same truck', () => {
+    const dos = [doWith('8001', [['5001', 0, 150]]), doWith('8002', [['5001', 0, 50]])];
+    expect(expectedPieces('5001', 0, 400, dos)).toEqual({ pieces: 200, from: 'do' });
+  });
+
+  it('a line the DO left out is expected as 0 on this truck', () => {
+    expect(expectedPieces('5001', 1, 600, [doWith('8001', [['5001', 0, 200]])])).toEqual({
+      pieces: 0,
+      from: 'do',
+    });
+  });
+
+  it('a combined DO covers each SDO separately', () => {
+    const dos = [
+      doWith('8005', [
+        ['5003', 0, 80],
+        ['5004', 0, 40],
+      ]),
+    ];
+    expect(expectedPieces('5004', 0, 40, dos)).toEqual({ pieces: 40, from: 'do' });
+    expect(expectedPieces('5009', 0, 24, dos)).toEqual({ pieces: 24, from: 'sdo' });
   });
 });

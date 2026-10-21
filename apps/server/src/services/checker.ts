@@ -6,6 +6,7 @@
 import {
   diffSdoLines,
   evaluateLineChecks,
+  expectedPieces,
   normalizeCardNo,
   raise,
   type RaisedAlert,
@@ -28,6 +29,7 @@ import { deliverAlerts, recordAlerts, type AlertRow } from './alerts.js';
 import { audit, type DbOrTx } from './audit.js';
 import type { ServiceDeps } from './deps.js';
 import { conflict, notFound, ServiceError } from './errors.js';
+import { queueDoUdfs, tripLinkedDos } from './dos.js';
 import { cachedSdos, cacheSdo } from './sdoCache.js';
 import type { Site } from './sites.js';
 
@@ -117,7 +119,19 @@ export interface CheckSdo {
   version: string | null;
   changed: boolean;
   changes: SdoLineChange[];
-  lines: { lineNo: number; size: string; spec: string; length: string; pieces: number }[];
+  /** DOs on this truck copied from this SDO. */
+  doNos: string[];
+  lines: {
+    lineNo: number;
+    size: string;
+    spec: string;
+    length: string;
+    /** On the SDO. */
+    pieces: number;
+    /** On this truck: from its DO when it has one, else the SDO. */
+    expected: number;
+    from: 'do' | 'sdo';
+  }[];
 }
 
 export interface CheckView {
@@ -188,6 +202,7 @@ export async function checkView(deps: ServiceDeps, site: Site, tripId: string): 
     site.id,
     links.map((l) => l.sdoNo),
   );
+  const linkedDos = await tripLinkedDos(db, site.id, tripId);
   const newAlerts: AlertRow[] = [];
   const sdos: CheckSdo[] = [];
   for (const link of links) {
@@ -231,7 +246,13 @@ export async function checkView(deps: ServiceDeps, site: Site, tripId: string): 
       version: c?.version ?? null,
       changed,
       changes: changed && link.linesAtLink ? diffSdoLines(link.linesAtLink, lines) : [],
-      lines: lines.map(({ itemCode: _, ...l }) => l),
+      doNos: linkedDos
+        .filter((d) => d.lines.some((x) => x.baseSdoNo === link.sdoNo))
+        .map((d) => d.doNo),
+      lines: lines.map(({ itemCode: _, ...l }) => {
+        const e = expectedPieces(link.sdoNo, l.lineNo, l.pieces, linkedDos);
+        return { ...l, expected: e.pieces, from: e.from };
+      }),
     });
   }
   await deliverAlerts(db, deps.adapters.notifier, deps.events, newAlerts, {
@@ -305,11 +326,12 @@ export async function decide(
         throw conflict('SDO_CHANGED_AGAIN');
     }
 
+    const linkedDos = await tripLinkedDos(tx, site.id, tripId);
     const expected = links.flatMap((l) =>
       (cache.get(l.sdoNo)?.lines ?? []).map((x) => ({
         sdoNo: l.sdoNo,
         lineNo: x.lineNo,
-        pieces: x.pieces,
+        pieces: expectedPieces(l.sdoNo, x.lineNo, x.pieces, linkedDos).pieces,
       })),
     );
     const checked = evaluateLineChecks(expected, input.lines);
@@ -344,6 +366,9 @@ export async function decide(
           ),
         );
     }
+
+    // Approval stamps checker name and time onto the DO(s) in SAP (queued).
+    if (input.decision === 'approve') await queueDoUdfs(tx, site.id, tripId, now);
 
     const raised: RaisedAlert[] =
       input.decision === 'reject' ? [raise('CHECKER_REJECTED', { reason: input.reason! })] : [];

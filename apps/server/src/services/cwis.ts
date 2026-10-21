@@ -22,6 +22,8 @@ import {
 import { deliverAlerts, recordAlerts, type AlertRow } from './alerts.js';
 import type { DbOrTx } from './audit.js';
 import type { ServiceDeps } from './deps.js';
+import { queueDoUdfs } from './dos.js';
+import { retryDelayMs } from './retry.js';
 import type { Site } from './sites.js';
 
 // --- Carry-forward (VMS → CWIS) -----------------------------------------------
@@ -77,9 +79,7 @@ export async function queueCwisPush(db: DbOrTx, siteId: string, tripId: string, 
   }
 }
 
-/** Wait before retry n: 10 s doubling, at most 10 minutes. */
-export const retryDelayMs = (attempts: number) => Math.min(10_000 * 2 ** (attempts - 1), 600_000);
-
+export { retryDelayMs } from './retry.js';
 /** Send due carry-forward pushes. Returns how many were sent. */
 export async function sendCwisPushes(deps: ServiceDeps, site: Site, limit = 50): Promise<number> {
   const now = deps.now();
@@ -240,6 +240,9 @@ export async function pollCwisTickets(deps: ServiceDeps, site: Site): Promise<st
       changed.add(match.tripId);
       await checkPlate(match.tripId, w.ticketNo, w.plate);
     }
+
+    // The WB ticket goes onto the trip's DOs in SAP.
+    for (const tripId of changed) await queueDoUdfs(tx, site.id, tripId, now);
   });
 
   for (const tripId of changed) deps.events.publish({ type: 'trip_changed', tripId });

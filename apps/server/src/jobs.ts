@@ -3,7 +3,8 @@
  * Each job never overlaps itself; a failure (SAP or CWIS down) is logged and
  * the job simply runs again next time. The gate never waits on any of them.
  */
-import { sendCwisPushes, pollCwisTickets } from './services/cwis.js';
+import { pollCwisTickets, sendCwisPushes } from './services/cwis.js';
+import { discoverDos, sendSapWrites } from './services/dos.js';
 import { syncTransporters } from './services/businessPartners.js';
 import type { ServiceDeps } from './services/deps.js';
 import { refreshSdoCache } from './services/sdoCache.js';
@@ -15,6 +16,9 @@ export interface JobDef {
   everyMs: number;
   run: () => Promise<unknown>;
 }
+
+/** Jobs run about a second after a trip changes, besides their own schedule. */
+export const SOON_AFTER_TRIP_CHANGE = ['cwis-push', 'do-discovery', 'sap-writes'];
 
 export const SDO_FULL_REFRESH_EVERY = 20; // incremental every 3 min, full about hourly
 
@@ -28,6 +32,8 @@ export function defineJobs(deps: ServiceDeps, site: Site): JobDef[] {
     },
     { name: 'cwis-poll', everyMs: 30_000, run: () => pollCwisTickets(deps, site) },
     { name: 'cwis-push', everyMs: 10_000, run: () => sendCwisPushes(deps, site) },
+    { name: 'do-discovery', everyMs: 2 * 60_000, run: () => discoverDos(deps, site) },
+    { name: 'sap-writes', everyMs: 15_000, run: () => sendSapWrites(deps, site) },
     {
       name: 'transporter-sync',
       everyMs: 60 * 60_000,
@@ -69,13 +75,16 @@ export function startJobs(
     timers.push(setInterval(() => void runNow(job.name), job.everyMs));
   }
 
-  // A trip edit (SDO linked, company set) goes to CWIS within a second.
+  // A trip edit (SDO linked, company set, check done) reaches CWIS and SAP
+  // within a second, and new DOs for it are looked up.
   let pushSoon: NodeJS.Timeout | null = null;
   const off = events.subscribe((e) => {
     if (e.type !== 'trip_changed' || pushSoon) return;
     pushSoon = setTimeout(() => {
       pushSoon = null;
-      void runNow('cwis-push');
+      for (const name of SOON_AFTER_TRIP_CHANGE) {
+        if (jobs.some((j) => j.name === name)) void runNow(name);
+      }
     }, 1000);
   });
 

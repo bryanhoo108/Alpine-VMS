@@ -49,7 +49,8 @@ export const rejectReason = pgEnum('reject_reason', [
 ]);
 export const alertLevel = pgEnum('alert_level', ['amber', 'red', 'logged']);
 export const watchKind = pgEnum('watch_kind', ['plate', 'transporter']);
-export const outboxStatus = pgEnum('outbox_status', ['pending', 'done', 'failed']);
+/** superseded = replaced by a newer write for the same DO before it was sent. */
+export const outboxStatus = pgEnum('outbox_status', ['pending', 'done', 'failed', 'superseded']);
 
 // --- Site, people, vehicles --------------------------------------------------
 
@@ -455,6 +456,7 @@ export const sapWrites = pgTable(
   {
     id: id(),
     siteId: siteId(),
+    tripId: uuid('trip_id').references(() => trips.id),
     doNo: text('do_no').notNull(),
     /** Built from the CWIS ticket number, so a retry cannot duplicate. */
     idempotencyKey: text('idempotency_key').notNull(),

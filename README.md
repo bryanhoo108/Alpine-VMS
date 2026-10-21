@@ -56,16 +56,22 @@ Sign in as **Checker 1** with the PIN. Trucks with SDOs that are not approved ye
 
 To see **SDO changed** in mock mode, amend an SDO line after the truck is matched: `POST /api/dev/sap/amend {"sdoNo":"5004","lineNo":0,"pieces":30}`.
 
+### DOs (mock mode)
+
+On a matched truck in **Office**, **Test DO** makes a DO in the mock SAP from the truck's SDOs (**Test part DO**: half the pieces, a split delivery). The DO links to the truck by itself and its SAP status turns **In SAP** once the UDFs are written. The checker then counts against the DO's pieces, with the SDO's shown alongside.
+
 ### Background jobs
 
 The server runs these itself (no extra service to install); each retries on its own if SAP or CWIS is down, and the gate never waits on them:
 
-| Job                | Every                               | What                                                                                                 |
-| ------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `sdo-refresh`      | 3 min (full about hourly)           | Copy open SDOs from SAP into the local cache                                                         |
-| `cwis-poll`        | 30 s                                | Read new CWIS tickets, link them to trucks, flag plate mismatches                                    |
-| `cwis-push`        | 10 s, and ~1 s after a trip changes | Send truck details (plate, card, company, driver, SDOs, trip number) to CWIS, retrying with back-off |
-| `transporter-sync` | 1 h                                 | Copy transporters from SAP business partners                                                         |
+| Job                | Every                                | What                                                                                                                                             |
+| ------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sdo-refresh`      | 3 min (full about hourly)            | Copy open SDOs from SAP into the local cache                                                                                                     |
+| `cwis-poll`        | 30 s                                 | Read new CWIS tickets, link them to trucks, flag plate mismatches                                                                                |
+| `cwis-push`        | 10 s, and ~1 s after a trip changes  | Send truck details (plate, card, company, driver, SDOs, trip number) to CWIS, retrying with back-off                                             |
+| `do-discovery`     | 2 min, and ~1 s after a trip changes | Find DOs made from the trucks' SDOs ("Copy To") and link each to its truck when only one truck fits                                              |
+| `sap-writes`       | 15 s, and ~1 s after a trip changes  | Write plate, WB ticket, checker name/time and gate times to the DO's UDFs, retrying with back-off; the CWIS ticket number is the idempotency key |
+| `transporter-sync` | 1 h                                  | Copy transporters from SAP business partners                                                                                                     |
 
 The plan named pg-boss for these; a small in-process scheduler over the `cwis_pushes` / `sap_writes` outbox tables does the same job with one less dependency.
 

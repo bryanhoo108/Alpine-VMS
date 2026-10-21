@@ -216,7 +216,10 @@ interface LineState {
   size: string;
   spec: string;
   length: string;
+  /** On this truck: the DO's pieces when it has a DO, else the SDO's. */
   expected: number;
+  sdoPieces: number;
+  fromDo: boolean;
   actual: number | null;
   changed: boolean;
 }
@@ -253,7 +256,9 @@ function CheckLoad({
             size: l.size,
             spec: l.spec,
             length: l.length,
-            expected: l.pieces,
+            expected: l.expected,
+            sdoPieces: l.pieces,
+            fromDo: l.from === 'do',
             actual: null,
             changed: s.changes.some((c) => c.lineNo === l.lineNo),
           })),
@@ -382,6 +387,8 @@ function CheckLoad({
             <div className="font-mono text-3xl font-black">{formatPlate(view.plate)}</div>
             <div className="truncate text-lg font-semibold text-muted">
               SDO {view.sdos.map((s) => s.sdoNo).join(', ')}
+              {view.sdos.some((s) => s.doNos.length > 0) &&
+                ` · DO ${[...new Set(view.sdos.flatMap((s) => s.doNos))].join(', ')}`}
             </div>
           </div>
           <div className="ml-auto flex flex-col items-end gap-1">
@@ -523,6 +530,7 @@ function LineRow({
         </div>
         <div className="truncate text-lg text-muted">
           {line.spec} · {line.length} · SDO {line.sdoNo}
+          {line.fromDo && line.sdoPieces !== line.expected && ` (SDO ${line.sdoPieces})`}
         </div>
       </div>
       <button

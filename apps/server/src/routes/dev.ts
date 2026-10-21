@@ -15,6 +15,7 @@ import type { AppContext } from '../app.js';
 import { requireRole } from '../auth/session.js';
 import { cards, trips, weighTickets } from '../db/schema.js';
 import { pollCwisTickets, sendCwisPushes } from '../services/cwis.js';
+import { discoverDos } from '../services/dos.js';
 import { conflict, notFound } from '../services/errors.js';
 
 interface DevContext extends AppContext {
@@ -128,6 +129,51 @@ export const devRoutes: FastifyPluginAsync<DevContext> = async (app, ctx) => {
     async (req) => {
       ctx.mocks.sap.amendSdoLine(req.body.sdoNo, req.body.lineNo, { pieces: req.body.pieces });
       return { ok: true };
+    },
+  );
+
+  /**
+   * Logistics does "Copy To" from SDO(s) to a new DO in SAP. With half=true
+   * each line carries half the pieces (a split delivery). Then DOs are looked up.
+   */
+  app.post<{ Body: { sdoNos: string[]; half?: boolean } }>(
+    '/api/dev/sap/create-do',
+    {
+      preHandler: requireRole(),
+      schema: {
+        body: {
+          type: 'object',
+          required: ['sdoNos'],
+          properties: {
+            sdoNos: {
+              type: 'array',
+              minItems: 1,
+              items: { type: 'string', minLength: 1, maxLength: 20 },
+            },
+            half: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    async (req) => {
+      const sap = ctx.mocks.sap;
+      const sources = await Promise.all(
+        req.body.sdoNos.map(async (sdoNo) => {
+          if (!req.body.half) return sdoNo;
+          const sdo = await sap.getSdo(sdoNo);
+          if (!sdo) throw notFound('SDO_NOT_FOUND');
+          return {
+            sdoNo,
+            lines: sdo.lines.map((l) => ({
+              lineNo: l.lineNo,
+              pieces: Math.max(1, Math.floor(l.pieces / 2)),
+            })),
+          };
+        }),
+      );
+      const created = sap.createDo(sources);
+      await discoverDos(ctx, ctx.site);
+      return created;
     },
   );
 };

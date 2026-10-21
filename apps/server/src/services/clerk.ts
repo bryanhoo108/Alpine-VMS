@@ -31,6 +31,7 @@ import { audit, type DbOrTx } from './audit.js';
 import { queueCwisPush } from './cwis.js';
 import type { ServiceDeps } from './deps.js';
 import { conflict, notFound, ServiceError } from './errors.js';
+import { tripDoView } from './dos.js';
 import { cachedSdos, snapshotLines } from './sdoCache.js';
 import type { Site } from './sites.js';
 
@@ -254,6 +255,7 @@ export async function tripDetail(deps: ServiceDeps, site: Site, tripId: string) 
       weighInAt: t.weighInAt,
       weighOutAt: t.weighOutAt,
     })),
+    dos: await tripDoView(db, site.id, tripId),
     alerts: tripAlerts.map(alertView),
   };
 }

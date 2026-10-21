@@ -22,6 +22,7 @@ import {
 } from '../../api';
 import { dateTimeOf, linesSummary, timeOf } from '../../format';
 import { formatPlate } from '../../plate';
+import { DosCard } from './DosCard';
 import { Button, Card, Chip, inputClass, ReasonForm } from './ui';
 
 interface Props {
@@ -365,6 +366,8 @@ function TripPanel({
           </ul>
         </Card>
       )}
+
+      {outbound && <DosCard trip={trip} mock={mock} act={act} />}
 
       <Card
         title="Weighbridge (CWIS)"
