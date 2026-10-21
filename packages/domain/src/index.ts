@@ -5,3 +5,4 @@ export * from './sdoDoLinking.js';
 export * from './exitStatus.js';
 export * from './cardLifecycle.js';
 export * from './sdoChange.js';
+export * from './preRegistration.js';

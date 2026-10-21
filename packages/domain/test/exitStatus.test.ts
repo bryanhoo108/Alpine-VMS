@@ -46,8 +46,10 @@ describe('exitStatus: outbound', () => {
     expect(s.reasons.map((r) => r.detail?.sdoNo)).toEqual(['5002', '5003']);
   });
 
-  it('is amber when no SDO was linked', () => {
-    expect(types(outbound({ sdoNos: [], sdosWithoutDo: [] }))).toEqual(['EXIT_NO_SDO']);
+  it('is red when no SDO was linked', () => {
+    const input = outbound({ sdoNos: [], sdosWithoutDo: [] });
+    expect(exitStatus(input).level).toBe('red');
+    expect(types(input)).toEqual(['EXIT_NO_SDO']);
   });
 
   it('is red when the card is not returned, even if all else is fine', () => {

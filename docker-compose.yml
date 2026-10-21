@@ -1,0 +1,14 @@
+# Development database only. Production uses PostgreSQL installed on the on-site server.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: vms
+    ports:
+      - '5432:5432'
+    volumes:
+      - vms-pgdata:/var/lib/postgresql/data
+volumes:
+  vms-pgdata:

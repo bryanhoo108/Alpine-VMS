@@ -20,8 +20,8 @@ export const ALERTS = {
   EXIT_NO_CHECK: { level: 'red', notify: ['supervisor'], label: 'No check' },
   EXIT_REJECTED: { level: 'red', notify: ['supervisor'], label: 'Load rejected' },
   EXIT_NO_DO: { level: 'amber', notify: ['supervisor'], label: 'No DO' },
-  // Not in the spec table; provisional, see docs/decisions.md (Q4).
-  EXIT_NO_SDO: { level: 'amber', notify: ['supervisor'], label: 'No SDO' },
+  // Not in the spec table; red by decision, see docs/decisions.md (Q4).
+  EXIT_NO_SDO: { level: 'red', notify: ['supervisor'], label: 'No SDO' },
   EXIT_NO_WEIGH_OUT: { level: 'amber', notify: ['supervisor'], label: 'No weigh-out' },
   CARD_NOT_RETURNED: { level: 'red', notify: ['supervisor'], label: 'No card' },
   // Weighbridge
@@ -30,6 +30,7 @@ export const ALERTS = {
   SDO_CHANGED: { level: 'amber', notify: [], label: 'SDO changed' },
   CHECKER_REJECTED: { level: 'red', notify: ['supervisor', 'logistics'], label: 'Load rejected' },
   // Gate in
+  WATCHLIST_HIT: { level: 'red', notify: ['supervisor'], label: 'Watchlist' },
   PLATE_ALREADY_ON_SITE: { level: 'amber', notify: ['supervisor'], label: 'Already inside' },
   LPR_CORRECTED: { level: 'logged', notify: [], label: 'Plate changed' },
   LPR_NOT_CONFIRMED: { level: 'logged', notify: [], label: 'Plate not read' },
