@@ -2,23 +2,24 @@ import { useEffect, useState } from 'react';
 import { api, type Me } from './api';
 import { DevPanel } from './components/DevPanel';
 import { Shell } from './components/Shell';
+import { Checker } from './screens/Checker';
 import { GateIn } from './screens/GateIn';
 import { Login } from './screens/Login';
 import { Office } from './screens/office/Office';
 import { Placeholder } from './screens/Placeholder';
 
-type View = 'gate-in' | 'office';
+type View = 'gate-in' | 'office' | 'checker';
 
 /** Which screens each role may open; the first is where they land. */
 const VIEWS: Record<Me['role'], View[]> = {
   guard: ['gate-in'],
   clerk: ['office'],
-  checker: [],
-  supervisor: ['office', 'gate-in'],
-  admin: ['office', 'gate-in'],
+  checker: ['checker'],
+  supervisor: ['office', 'gate-in', 'checker'],
+  admin: ['office', 'gate-in', 'checker'],
 };
 
-const TITLES: Record<View, string> = { 'gate-in': 'Gate In', office: 'Office' };
+const TITLES: Record<View, string> = { 'gate-in': 'Gate In', office: 'Office', checker: 'Check' };
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -51,7 +52,7 @@ export function App() {
   if (!current) {
     return (
       <Shell title="Alpine VMS" me={me} onLogout={logout}>
-        <Placeholder text="Checker screen comes in a later step" />
+        <Placeholder text="No screen for this role" />
       </Shell>
     );
   }
@@ -64,6 +65,7 @@ export function App() {
     <Shell title={TITLES[current]} me={me} onLogout={logout} nav={nav}>
       {current === 'gate-in' && <GateIn mock={mock} />}
       {current === 'office' && <Office mock={mock} />}
+      {current === 'checker' && <Checker />}
       {mock && current === 'gate-in' && <DevPanel camera="entry" />}
     </Shell>
   );

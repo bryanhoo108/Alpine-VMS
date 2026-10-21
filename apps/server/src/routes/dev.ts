@@ -107,4 +107,27 @@ export const devRoutes: FastifyPluginAsync<DevContext> = async (app, ctx) => {
       return out;
     },
   );
+
+  /** Logistics amends an SDO line in SAP (to see "SDO changed" on the checker). */
+  app.post<{ Body: { sdoNo: string; lineNo: number; pieces: number } }>(
+    '/api/dev/sap/amend',
+    {
+      preHandler: requireRole(),
+      schema: {
+        body: {
+          type: 'object',
+          required: ['sdoNo', 'lineNo', 'pieces'],
+          properties: {
+            sdoNo: { type: 'string', minLength: 1, maxLength: 20 },
+            lineNo: { type: 'integer', minimum: 0 },
+            pieces: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+    },
+    async (req) => {
+      ctx.mocks.sap.amendSdoLine(req.body.sdoNo, req.body.lineNo, { pieces: req.body.pieces });
+      return { ok: true };
+    },
+  );
 };

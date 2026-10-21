@@ -1,0 +1,1 @@
+ALTER TABLE "trip_sdos" ADD COLUMN "lines_at_link" jsonb;

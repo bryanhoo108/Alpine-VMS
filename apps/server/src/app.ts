@@ -10,6 +10,7 @@ import { EventBus } from './events.js';
 import { FileStore } from './files.js';
 import { defineJobs, startJobs, type JobRunner } from './jobs.js';
 import { authRoutes } from './routes/auth.js';
+import { checkerRoutes } from './routes/checker.js';
 import { clerkRoutes } from './routes/clerk.js';
 import { devRoutes } from './routes/dev.js';
 import { eventRoutes } from './routes/events.js';
@@ -90,6 +91,7 @@ export async function buildApp(
   await app.register(gateRoutes, ctx);
   await app.register(eventRoutes, ctx);
   await app.register(clerkRoutes, ctx);
+  await app.register(checkerRoutes, ctx);
   const { lpr, cwis, sap } = deps.adapters.mocks;
   if (lpr && cwis && sap) await app.register(devRoutes, { ...ctx, mocks: { lpr, cwis, sap } });
 

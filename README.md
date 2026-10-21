@@ -50,6 +50,12 @@ Use **Office login** with user `clerk` and `SEED_DEMO_PASSWORD`.
 
 Supervisors land on Office and can switch to Gate In from the title bar.
 
+### Trying the Check screen (checker)
+
+Sign in as **Checker 1** with the PIN. Trucks with SDOs that are not approved yet are listed; tap one, or tap its RFID card. The SDO lines are re-read live from SAP (the cached copy is shown, marked **Offline**, when SAP does not answer within 4 seconds). Normal load: **All OK**, **Photo**, **Approve**. Tap a line's number to count pieces with −10/−1/+1/+10. **Reject** asks for one of four reasons and alerts the supervisor and logistics; the truck goes back on the list as **Re-check**.
+
+To see **SDO changed** in mock mode, amend an SDO line after the truck is matched: `POST /api/dev/sap/amend {"sdoNo":"5004","lineNo":0,"pieces":30}`.
+
 ### Background jobs
 
 The server runs these itself (no extra service to install); each retries on its own if SAP or CWIS is down, and the gate never waits on them:

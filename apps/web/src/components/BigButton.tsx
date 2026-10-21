@@ -39,7 +39,7 @@ export function BigButton({
       className={`flex items-center justify-center rounded-2xl font-bold shadow-sm transition-transform active:scale-[0.98] disabled:opacity-40 ${sizes} ${TONES[tone]} ${className}`}
       {...rest}
     >
-      <Icon aria-hidden strokeWidth={2.5} />
+      <Icon aria-hidden strokeWidth={2.5} className="shrink-0" />
       <span>{label}</span>
     </button>
   );

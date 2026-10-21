@@ -14,6 +14,8 @@ import {
   ChevronRight,
   ClipboardList,
   CreditCard,
+  FileText,
+  IdCard,
   Keyboard,
   PackageOpen,
   RotateCcw,
@@ -31,7 +33,7 @@ import {
   type PreReg,
 } from '../api';
 import { BigButton } from '../components/BigButton';
-import { PhotoCapture, type PhotoStep } from '../components/PhotoCapture';
+import { PhotoCapture } from '../components/PhotoCapture';
 import { PlateCard } from '../components/PlateCard';
 import { PlateKeyboard } from '../components/PlateKeyboard';
 import { OkBanner, StatusBanner } from '../components/StatusBanner';
@@ -41,6 +43,8 @@ import { useLiveEvents } from '../hooks/useLiveEvents';
 import { formatPlate, normalizePlate } from '../plate';
 
 type TripType = 'outbound' | 'inbound';
+/** First shot is the IC, then documents. */
+type PhotoKind = 'ic' | 'document';
 
 interface Draft {
   plateReadId: string | null;
@@ -203,7 +207,7 @@ export function GateIn({ mock }: { mock: boolean }) {
     reset();
   };
 
-  const onPhoto = (kind: PhotoStep, blob: Blob) => {
+  const onPhoto = (kind: PhotoKind, blob: Blob) => {
     setPhotos((c) => ({ ...c, [kind]: c[kind] + 1 }));
     uploads.current.push(
       api.upload<{ id: string }>(`/api/photos?kind=${kind}`, blob).then((r) => r.id),
@@ -382,11 +386,21 @@ export function GateIn({ mock }: { mock: boolean }) {
   }
 
   if (stage === 'photos') {
-    const step: PhotoStep = photos.ic === 0 ? 'ic' : 'document';
+    const step: PhotoKind = photos.ic === 0 ? 'ic' : 'document';
     const ready = photos.ic > 0 && photos.document > 0;
     return (
       <TwoPane
-        left={<PhotoCapture step={step} count={photos} onPhoto={onPhoto} />}
+        left={
+          <PhotoCapture
+            label={step === 'ic' ? 'IC' : 'Documents'}
+            icon={step === 'ic' ? IdCard : FileText}
+            badges={[
+              { icon: IdCard, count: photos.ic, testId: 'count-ic' },
+              { icon: FileText, count: photos.document, testId: 'count-doc' },
+            ]}
+            onPhoto={(blob) => onPhoto(step, blob)}
+          />
+        }
         right={
           <div className="flex h-full min-h-0 flex-col gap-3">
             <div className="flex items-center gap-3 rounded-2xl bg-panel p-3">

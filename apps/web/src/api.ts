@@ -193,3 +193,49 @@ export interface OfficeLists {
   openSdos: { sdoNo: string; customerName: string; docDate: string }[];
   today: string;
 }
+
+// --- Checker ---------------------------------------------------------------------
+
+export type RejectReason = 'wrong_item' | 'wrong_quantity' | 'damaged' | 'other';
+
+export interface QueueItem {
+  id: string;
+  tripNo: string;
+  plate: string;
+  transporterName: string | null;
+  sdoNos: string[];
+  gateInAt: string;
+  weighedIn: boolean;
+  lastDecision: 'reject' | null;
+}
+
+export interface CheckSdo {
+  sdoNo: string;
+  customerName: string | null;
+  version: string | null;
+  changed: boolean;
+  changes: { lineNo: number; change: 'added' | 'removed' | 'changed' }[];
+  lines: SdoLine[];
+}
+
+export interface CheckView {
+  id: string;
+  tripNo: string;
+  plate: string;
+  transporterName: string | null;
+  gateInAt: string;
+  offline: boolean;
+  sdos: CheckSdo[];
+  lastDecision: {
+    decision: 'approve' | 'reject';
+    reason: RejectReason | null;
+    decidedAt: string;
+    checkerName: string;
+  } | null;
+}
+
+export interface DecisionResponse {
+  decision: 'approve' | 'reject';
+  decidedAt: string;
+  differences: { sdoNo: string; lineNo: number; expectedPieces: number; actualPieces: number }[];
+}

@@ -237,6 +237,8 @@ export const tripSdos = pgTable(
     linkedAt: ts('linked_at').notNull().defaultNow(),
     /** sdoVersion() of the lines when linked; differs later → "SDO changed". */
     sdoVersionAtLink: text('sdo_version_at_link'),
+    /** The lines as they were when linked, so the checker sees which line changed. */
+    linesAtLink: jsonb('lines_at_link').$type<SdoLineSnapshot[]>(),
   },
   (t) => [primaryKey({ columns: [t.tripId, t.sdoNo] })],
 );
@@ -353,6 +355,15 @@ export const weighTickets = pgTable(
 );
 
 // --- Checker -----------------------------------------------------------------
+
+export interface SdoLineSnapshot {
+  lineNo: number;
+  itemCode: string;
+  size: string;
+  spec: string;
+  length: string;
+  pieces: number;
+}
 
 export interface LineCheck {
   sdoNo: string;

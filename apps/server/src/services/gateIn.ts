@@ -29,6 +29,7 @@ import {
 import { siteDate } from '../time.js';
 import { deliverAlerts, recordAlerts } from './alerts.js';
 import { queueCwisPush } from './cwis.js';
+import { cachedSdos, snapshotLines } from './sdoCache.js';
 import type { ServiceDeps } from './deps.js';
 import { audit, type DbOrTx } from './audit.js';
 import type { Site } from './sites.js';
@@ -308,18 +309,25 @@ export async function gateIn(
       .set({ status: 'issued', currentTripId: trip!.id })
       .where(eq(cards.id, card.id));
 
-    // SDOs from the pre-registration (outbound only). The SDO version is filled
-    // in when the SDO cache has the SDO (step 4), never by waiting on SAP here.
+    // SDOs from the pre-registration (outbound only). Version and lines come
+    // from the local SDO cache, never by waiting on SAP; an SDO not cached yet
+    // gets them on the next cache refresh.
     const sdoNos = input.type === 'outbound' && preReg ? preReg.sdoNos : [];
     if (sdoNos.length > 0) {
+      const cache = await cachedSdos(tx, site.id, sdoNos);
       await tx.insert(tripSdos).values(
-        sdoNos.map((sdoNo) => ({
-          siteId: site.id,
-          tripId: trip!.id,
-          sdoNo,
-          source: 'pre_registration' as const,
-          linkedAt: now,
-        })),
+        sdoNos.map((sdoNo) => {
+          const c = cache.get(sdoNo);
+          return {
+            siteId: site.id,
+            tripId: trip!.id,
+            sdoNo,
+            source: 'pre_registration' as const,
+            linkedAt: now,
+            sdoVersionAtLink: c?.version ?? null,
+            linesAtLink: c ? snapshotLines(c) : null,
+          };
+        }),
       );
     }
     if (preReg) {

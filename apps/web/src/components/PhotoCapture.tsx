@@ -1,20 +1,26 @@
-import { Camera, FileText, IdCard, Loader2 } from 'lucide-react';
+import { Camera, Loader2, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-export type PhotoStep = 'ic' | 'document';
+export interface PhotoBadge {
+  icon: LucideIcon;
+  count: number;
+  testId: string;
+}
 
 interface Props {
-  step: PhotoStep;
-  count: { ic: number; document: number };
-  onPhoto: (kind: PhotoStep, blob: Blob) => void;
+  /** What the next shot is for, e.g. "IC", "Documents", "Load". */
+  label: string;
+  icon: LucideIcon;
+  badges: PhotoBadge[];
+  onPhoto: (blob: Blob) => void;
 }
 
 /**
- * One camera session for all photos: the live view stays open, each shutter
- * tap takes one photo. First shot is the IC, then documents.
- * Falls back to the device camera app when live view is not available.
+ * One camera session: the live view stays open and each shutter tap takes
+ * one photo. Falls back to the device camera app when live view is not
+ * available. The shutter waits until frames arrive so no tap is lost.
  */
-export function PhotoCapture({ step, count, onPhoto }: Props) {
+export function PhotoCapture({ label, icon: Icon, badges, onPhoto }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [live, setLive] = useState<'starting' | 'on' | 'off'>('starting');
@@ -23,20 +29,22 @@ export function PhotoCapture({ step, count, onPhoto }: Props) {
   useEffect(() => {
     let stream: MediaStream | null = null;
     let stopped = false;
+    if (!navigator.mediaDevices) {
+      setLive('off');
+      return;
+    }
     navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1600 } }, audio: false })
+      .getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1600 } }, audio: false })
       .then((s) => {
         if (stopped) return s.getTracks().forEach((t) => t.stop());
         stream = s;
         const v = video.current;
         if (!v) return;
-        // Ready only once frames arrive; a shutter tap before that would be lost.
         v.onplaying = () => setLive('on');
         v.srcObject = s;
         void v.play().catch(() => setLive('off'));
       })
       .catch(() => setLive('off'));
-    if (!navigator.mediaDevices) setLive('off');
     return () => {
       stopped = true;
       stream?.getTracks().forEach((t) => t.stop());
@@ -52,12 +60,11 @@ export function PhotoCapture({ step, count, onPhoto }: Props) {
     canvas.width = v.videoWidth;
     canvas.height = v.videoHeight;
     canvas.getContext('2d')?.drawImage(v, 0, 0);
-    canvas.toBlob((blob) => blob && onPhoto(step, blob), 'image/jpeg', 0.85);
+    canvas.toBlob((blob) => blob && onPhoto(blob), 'image/jpeg', 0.85);
     setFlash(true);
     setTimeout(() => setFlash(false), 150);
   };
 
-  const StepIcon = step === 'ic' ? IdCard : FileText;
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-slate-800">
@@ -74,28 +81,25 @@ export function PhotoCapture({ step, count, onPhoto }: Props) {
         )}
         {flash && <div className="absolute inset-0 bg-white/70" />}
         <div className="absolute left-3 top-3 flex items-center gap-2 rounded-xl bg-ink/80 px-4 py-2 text-2xl font-bold text-white">
-          <StepIcon className="size-8" /> {step === 'ic' ? 'IC' : 'Documents'}
+          <Icon className="size-8" /> {label}
         </div>
         <div className="absolute right-3 top-3 flex gap-2 text-xl font-bold">
-          <span
-            data-testid="count-ic"
-            className={`flex items-center gap-1 rounded-lg px-3 py-1 ${count.ic ? 'bg-ok text-white' : 'bg-white/80'}`}
-          >
-            <IdCard className="size-6" /> {count.ic}
-          </span>
-          <span
-            data-testid="count-doc"
-            className={`flex items-center gap-1 rounded-lg px-3 py-1 ${count.document ? 'bg-ok text-white' : 'bg-white/80'}`}
-          >
-            <FileText className="size-6" /> {count.document}
-          </span>
+          {badges.map((b) => (
+            <span
+              key={b.testId}
+              data-testid={b.testId}
+              className={`flex items-center gap-1 rounded-lg px-3 py-1 ${b.count ? 'bg-ok text-white' : 'bg-white/80'}`}
+            >
+              <b.icon className="size-6" /> {b.count}
+            </span>
+          ))}
         </div>
       </div>
       <button
         type="button"
         onClick={shoot}
         disabled={live === 'starting'}
-        className="flex min-h-24 items-center justify-center gap-3 rounded-2xl bg-action text-3xl font-bold text-white active:bg-blue-900 disabled:opacity-50"
+        className="flex min-h-24 items-center justify-center gap-3 rounded-2xl bg-action text-3xl font-bold text-white active:bg-blue-900 disabled:opacity-50 portrait:min-h-20"
       >
         {live === 'starting' ? (
           <Loader2 className="size-12 animate-spin" strokeWidth={2.5} />
@@ -112,7 +116,7 @@ export function PhotoCapture({ step, count, onPhoto }: Props) {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) onPhoto(step, file);
+          if (file) onPhoto(file);
           e.target.value = '';
         }}
       />

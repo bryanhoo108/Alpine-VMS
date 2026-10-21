@@ -31,7 +31,7 @@ import { audit, type DbOrTx } from './audit.js';
 import { queueCwisPush } from './cwis.js';
 import type { ServiceDeps } from './deps.js';
 import { conflict, notFound, ServiceError } from './errors.js';
-import { cachedSdos } from './sdoCache.js';
+import { cachedSdos, snapshotLines } from './sdoCache.js';
 import type { Site } from './sites.js';
 
 type Trip = typeof trips.$inferSelect;
@@ -318,6 +318,7 @@ export async function linkSdos(
           linkedBy: userId,
           linkedAt: now,
           sdoVersionAtLink: cache.get(sdoNo)!.version,
+          linesAtLink: snapshotLines(cache.get(sdoNo)!),
         })),
       )
       .onConflictDoNothing()

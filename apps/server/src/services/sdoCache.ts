@@ -6,7 +6,7 @@
 import type { SapSdo } from '@vms/adapters';
 import { sdoVersion } from '@vms/domain';
 import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
-import { sdoCache, sdoLines, tripSdos } from '../db/schema.js';
+import { sdoCache, sdoLines, tripSdos, type SdoLineSnapshot } from '../db/schema.js';
 import type { DbOrTx } from './audit.js';
 import type { ServiceDeps } from './deps.js';
 import type { Site } from './sites.js';
@@ -83,10 +83,28 @@ export async function refreshSdoCache(
 
 export async function fillMissingVersions(db: DbOrTx, siteId: string) {
   await db.execute(sql`
-    update ${tripSdos} ts set sdo_version_at_link = c.version
+    update ${tripSdos} ts set
+      sdo_version_at_link = c.version,
+      lines_at_link = (
+        select coalesce(json_agg(json_build_object(
+          'lineNo', l.line_no, 'itemCode', l.item_code, 'size', l.size,
+          'spec', l.spec, 'length', l.length, 'pieces', l.pieces) order by l.line_no), '[]'::json)
+        from ${sdoLines} l where l.site_id = c.site_id and l.sdo_no = c.sdo_no)
     from ${sdoCache} c
     where ts.site_id = ${siteId} and ts.sdo_version_at_link is null
       and c.site_id = ts.site_id and c.sdo_no = ts.sdo_no`);
+}
+
+/** The lines kept on a trip–SDO link, for showing what changed later. */
+export function snapshotLines(sdo: CachedSdo): SdoLineSnapshot[] {
+  return sdo.lines.map((l) => ({
+    lineNo: l.lineNo,
+    itemCode: l.itemCode,
+    size: l.size,
+    spec: l.spec,
+    length: l.length,
+    pieces: l.pieces,
+  }));
 }
 
 /** Cached SDOs with their lines, keyed by number. */
