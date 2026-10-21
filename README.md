@@ -21,10 +21,28 @@ Requires Node 22, pnpm 10 and PostgreSQL 16 (local install, or `docker compose u
 pnpm install
 cp .env.example .env      # then set DATABASE_URL, SEED_DEMO_PIN, SEED_DEMO_PASSWORD
 pnpm db:seed              # migrates, then adds the site, demo users, 60 cards, sample data
-pnpm dev                  # http://localhost:8080/api/health
+pnpm dev                  # API on http://localhost:8080
+pnpm dev:web              # screens on http://localhost:5173 (proxies /api)
 pnpm test                 # unit, contract and database tests
+pnpm e2e                  # browser tests at tablet (1280×800) and phone (390×844) size
 pnpm typecheck
 ```
+
+Browser tests start their own server and throwaway database. If Playwright cannot download its browser, point it at an installed Chromium: `CHROMIUM_PATH=/path/to/chrome pnpm e2e`. Screenshots of every step land in `apps/web/e2e-screens/`.
+
+### Trying Gate In with the mocks
+
+Sign in as **Entry Guard**. The purple **Test** button (bottom left, mock mode only) makes the entry camera "see" a sample plate. In the card step, **Test card** stands in for an RFID tap. On a real tablet the card is read by NFC (Chrome on Android) or a USB keyboard-style reader.
+
+- `WXY 1234`: pre-registered, links SDO 5005 automatically
+- `BPN 2045`: pre-registered with two SDOs; send `BPN 2O45` to see a misread and pick it from the list
+- `BMK 7710`: pre-registered yesterday, shows as late
+- `BQL 1187`: on the watchlist, red screen and alarm
+- any other plate: new truck, guard picks the company or skips
+
+### Production
+
+`pnpm build`, then run the server with `WEB_DIR=apps/web/dist` so one process serves the API and the screens on the LAN.
 
 Database tests create and drop their own throwaway databases on the server in `TEST_DATABASE_URL`.
 

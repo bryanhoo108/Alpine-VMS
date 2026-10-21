@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+/*
+ * Status colours used on every guard and checker screen:
+ * ok = green (go), warn = amber (check), bad = red (call supervisor).
+ */
+@theme {
+  --color-ok: #15803d;
+  --color-ok-soft: #dcfce7;
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+  --color-bad: #b91c1c;
+  --color-bad-soft: #fee2e2;
+  --color-ink: #0f172a;
+  --color-panel: #ffffff;
+  --color-page: #e2e8f0;
+  --color-muted: #475569;
+  --color-action: #1d4ed8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+input {
+  user-select: text;
+}

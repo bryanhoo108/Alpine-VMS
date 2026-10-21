@@ -3,22 +3,32 @@ import { loadConfig } from '../src/config.js';
 import { addDays, siteDate } from '../src/time.js';
 
 describe('loadConfig', () => {
-  it('requires DATABASE_URL', () => {
-    expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
+  const SECRET = 'x'.repeat(32);
+
+  it('requires DATABASE_URL and SESSION_SECRET', () => {
+    expect(() => loadConfig({ SESSION_SECRET: SECRET })).toThrow(/DATABASE_URL/);
+    expect(() => loadConfig({ DATABASE_URL: 'x' })).toThrow(/SESSION_SECRET/);
+  });
+
+  it('rejects a short SESSION_SECRET', () => {
+    expect(() => loadConfig({ DATABASE_URL: 'x', SESSION_SECRET: 'short' })).toThrow(/32/);
   });
 
   it('applies defaults', () => {
-    expect(loadConfig({ DATABASE_URL: 'postgres://x' })).toMatchObject({
+    expect(loadConfig({ DATABASE_URL: 'postgres://x', SESSION_SECRET: SECRET })).toMatchObject({
       port: 8080,
       siteCode: 'APM',
       icPhotoRetentionDays: 90,
+      sessionHours: 14,
+      webDir: null,
+      lprWebhookToken: null,
     });
   });
 
   it('rejects a bad number', () => {
-    expect(() => loadConfig({ DATABASE_URL: 'x', IC_PHOTO_RETENTION_DAYS: 'ninety' })).toThrow(
-      /IC_PHOTO_RETENTION_DAYS/,
-    );
+    expect(() =>
+      loadConfig({ DATABASE_URL: 'x', SESSION_SECRET: SECRET, IC_PHOTO_RETENTION_DAYS: 'ninety' }),
+    ).toThrow(/IC_PHOTO_RETENTION_DAYS/);
   });
 });
 

@@ -1,7 +1,7 @@
 import { adapterConfigFromEnv, createAdapters, MockSapAdapter } from '@vms/adapters';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { testConfig } from './helpers/testConfig.js';
 import { seed } from '../src/db/seed.js';
 import { createTestDb, type TestDatabase } from './helpers/testDb.js';
 
@@ -14,7 +14,7 @@ afterAll(async () => t?.drop());
 const app = (siteCode = 'APM') => {
   const adapterConfig = adapterConfigFromEnv({});
   return buildApp({
-    config: loadConfig({ DATABASE_URL: t.url, SITE_CODE: siteCode }),
+    config: testConfig(t.url, { SITE_CODE: siteCode }),
     db: t.db,
     adapters: createAdapters(adapterConfig),
     adapterConfig,

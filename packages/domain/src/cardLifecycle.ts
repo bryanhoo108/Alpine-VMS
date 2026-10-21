@@ -6,6 +6,14 @@
 
 export type CardStatus = 'free' | 'issued' | 'lost';
 
+/**
+ * Card numbers are the card's serial as uppercase hex, no separators.
+ * NFC tablets report "04:a1:b2:…"; USB readers type it plain.
+ */
+export function normalizeCardNo(raw: string): string {
+  return raw.toUpperCase().replace(/[^0-9A-F]/g, '');
+}
+
 export interface Card {
   cardNo: string;
   status: CardStatus;

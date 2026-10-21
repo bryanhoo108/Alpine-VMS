@@ -3,6 +3,7 @@ import {
   collectCard,
   issueCard,
   markCardLost,
+  normalizeCardNo,
   recoverCard,
   type Card,
 } from '../src/cardLifecycle.js';
@@ -57,5 +58,12 @@ describe('card lifecycle', () => {
     const card = { ...free };
     issueCard(card, 'T1');
     expect(card).toEqual(free);
+  });
+});
+
+describe('normalizeCardNo', () => {
+  it('reads NFC serials and USB reader input the same way', () => {
+    expect(normalizeCardNo('04:a1:b2:c3:00:00:01')).toBe('04A1B2C3000001');
+    expect(normalizeCardNo(' 04a1b2c3000001 ')).toBe('04A1B2C3000001');
   });
 });

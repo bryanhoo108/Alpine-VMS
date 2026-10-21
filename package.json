@@ -8,10 +8,13 @@
   },
   "scripts": {
     "dev": "pnpm --filter @vms/server dev",
+    "dev:web": "pnpm --filter @vms/web dev",
+    "build": "pnpm --filter @vms/web build",
     "start": "pnpm --filter @vms/server start",
     "db:migrate": "pnpm --filter @vms/server db:migrate",
     "db:seed": "pnpm --filter @vms/server db:seed",
     "test": "pnpm -r --if-present test",
+    "e2e": "pnpm --filter @vms/web build && pnpm --filter @vms/web e2e",
     "typecheck": "pnpm -r --if-present typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
