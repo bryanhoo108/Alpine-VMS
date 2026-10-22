@@ -11,7 +11,7 @@
 import type { DoUdfs, SapDo } from '@vms/adapters';
 import { assignDos, selectDosForTrip, type DeliveryOrder, type DoLine } from '@vms/domain';
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, ne, or, sql } from 'drizzle-orm';
 import {
   checkerDecisions,
   doCache,
@@ -112,6 +112,9 @@ export async function tripLinkedDos(db: DbOrTx, siteId: string, tripId: string) 
 
 // --- Discovery -------------------------------------------------------------------------
 
+/** How long after gate out a truck can still get a DO linked automatically. */
+export const LATE_DO_HOURS = 24;
+
 /**
  * Find DOs for every outbound truck on site and link the unambiguous ones.
  * Throws if SAP is unreachable (the job retries). Returns what changed.
@@ -119,10 +122,19 @@ export async function tripLinkedDos(db: DbOrTx, siteId: string, tripId: string) 
 export async function discoverDos(deps: ServiceDeps, site: Site) {
   const { db } = deps;
   const now = deps.now();
+  // Trucks on site, plus trucks that left in the last day: a DO made after
+  // the truck has gone still gets linked (and its gate-out time sent to SAP).
+  const recent = new Date(now.getTime() - LATE_DO_HOURS * 3_600_000);
   const open = await db
     .select({ id: trips.id, gateInAt: trips.gateInAt })
     .from(trips)
-    .where(and(eq(trips.siteId, site.id), eq(trips.status, 'on_site'), eq(trips.type, 'outbound')));
+    .where(
+      and(
+        eq(trips.siteId, site.id),
+        eq(trips.type, 'outbound'),
+        or(eq(trips.status, 'on_site'), gte(trips.gateOutAt, recent)),
+      ),
+    );
   if (open.length === 0) return { linked: [], ambiguous: [] };
   const ids = open.map((t) => t.id);
   const links = await db.select().from(tripSdos).where(inArray(tripSdos.tripId, ids));

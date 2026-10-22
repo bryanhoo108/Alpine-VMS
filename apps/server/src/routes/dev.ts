@@ -176,4 +176,24 @@ export const devRoutes: FastifyPluginAsync<DevContext> = async (app, ctx) => {
       return created;
     },
   );
+
+  /** The card a truck on site carries (stands in for the driver handing it over). */
+  app.get<{ Params: { tripId: string } }>(
+    '/api/dev/card-of/:tripId',
+    {
+      preHandler: requireRole(),
+      schema: {
+        params: { type: 'object', properties: { tripId: { type: 'string', format: 'uuid' } } },
+      },
+    },
+    async (req) => {
+      const [row] = await ctx.db
+        .select({ cardNo: cards.cardNo })
+        .from(trips)
+        .innerJoin(cards, eq(cards.id, trips.cardId))
+        .where(and(eq(trips.siteId, ctx.site.id), eq(trips.id, req.params.tripId)));
+      if (!row) throw notFound('NO_CARD');
+      return row;
+    },
+  );
 };

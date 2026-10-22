@@ -56,6 +56,12 @@ Sign in as **Checker 1** with the PIN. Trucks with SDOs that are not approved ye
 
 To see **SDO changed** in mock mode, amend an SDO line after the truck is matched: `POST /api/dev/sap/amend {"sdoNo":"5004","lineNo":0,"pieces":30}`.
 
+### Trying Gate Out
+
+Sign in as **Exit Guard** and tap **Out** in the title bar (each tablet remembers In or Out). The purple **Test** button makes the exit camera see a plate. The screen shows **Go** (green), **Check** (amber) or **Call supervisor** (red, with alarm) and the reasons. The driver's card tap lets the truck out (**Test card** in mock mode); **No card** then **Yes, no card** marks the card lost. A misread plate shows **Not inside** with **Pick truck**. A card tapped with no camera read finds its truck and lets it out.
+
+Daily reconciliation (exits with no DO, DOs with no exit): `GET /api/reports/reconcile?date=YYYY-MM-DD` (clerk or supervisor).
+
 ### DOs (mock mode)
 
 On a matched truck in **Office**, **Test DO** makes a DO in the mock SAP from the truck's SDOs (**Test part DO**: half the pieces, a split delivery). The DO links to the truck by itself and its SAP status turns **In SAP** once the UDFs are written. The checker then counts against the DO's pieces, with the SDO's shown alongside.

@@ -270,3 +270,33 @@ export interface DecisionResponse {
   decidedAt: string;
   differences: { sdoNo: string; lineNo: number; expectedPieces: number; actualPieces: number }[];
 }
+
+// --- Gate out --------------------------------------------------------------------
+
+export interface ExitTruck {
+  id: string;
+  tripNo: string;
+  plate: string;
+  type: 'outbound' | 'inbound';
+  transporterName: string | null;
+  gateInAt: string;
+  status: { level: 'green' | 'amber' | 'red'; reasons: Alert[] };
+}
+
+export interface ExitState {
+  read: {
+    id: string;
+    plate: string;
+    confidence: number;
+    photoId: string | null;
+    readAt: string;
+  } | null;
+  truck: ExitTruck | null;
+  onSite: { id: string; tripNo: string; plate: string; type: 'outbound' | 'inbound' }[];
+}
+
+export interface GateOutResponse {
+  trip: { id: string; tripNo: string; plate: string; type: 'outbound' | 'inbound' };
+  status: ExitTruck['status'];
+  cardReturned: boolean;
+}

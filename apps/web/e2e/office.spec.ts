@@ -121,14 +121,16 @@ test('alerts tab shows red first and clears with a reason', async ({ page }) => 
   await expect(page.getByText('No open alerts.')).toBeVisible();
 });
 
-test('supervisor switches between Office, Check and Gate In', async ({ page }) => {
+test('supervisor switches between Office, Check, Gate Out and Gate In', async ({ page }) => {
   await officeLogin(page, 'supervisor');
   await expect(page.getByRole('heading', { name: 'Office' })).toBeVisible();
   await expectNoSidewaysOverflow(page);
   await page.screenshot(shot('5-supervisor'));
   await page.getByRole('button', { name: 'Check', pressed: false }).click();
   await expect(page.getByText('Tap card')).toBeVisible();
-  await page.getByRole('button', { name: 'Gate In', pressed: false }).click();
+  await page.getByRole('button', { name: 'Out', exact: true, pressed: false }).click();
+  await expect(page.getByRole('heading', { name: 'Gate Out' })).toBeAttached();
+  await page.getByRole('button', { name: 'In', exact: true, pressed: false }).click();
   await expect(page.getByText('Waiting for truck')).toBeVisible();
 });
 

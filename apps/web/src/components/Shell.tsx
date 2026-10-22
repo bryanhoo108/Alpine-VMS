@@ -41,7 +41,7 @@ export function Shell({
                 type="button"
                 onClick={n.onClick}
                 aria-pressed={n.active}
-                className={`min-h-11 whitespace-nowrap rounded-lg px-3 font-bold ${n.active ? 'bg-white text-ink' : 'text-white/80 active:bg-slate-700'}`}
+                className={`min-h-11 min-w-14 whitespace-nowrap rounded-lg px-3 font-bold ${n.active ? 'bg-white text-ink' : 'text-white/80 active:bg-slate-700'}`}
               >
                 {n.label}
               </button>
