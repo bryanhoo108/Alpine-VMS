@@ -59,6 +59,7 @@ export const authRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
           path: '/',
           httpOnly: true,
           sameSite: 'strict',
+          secure: ctx.config.https !== null,
           expires: new Date(exp),
         },
       );

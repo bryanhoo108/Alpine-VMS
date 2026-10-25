@@ -4,6 +4,17 @@ Visitor and truck management system for Alpine Pipe Manufacturing. Spec: [`docs/
 
 Phase 1 covers trucks only. CWIS, SAP and LPR are mocked behind adapters.
 
+**Install on site:** [`docs/INSTALL.md`](docs/INSTALL.md) (Docker or native, Linux or Windows Server, HTTPS for tablets, users and cards, backups).
+
+## Try it in one command (Docker)
+
+```sh
+cp .env.example .env     # set SEED_DEMO_PIN (4-8 digits) and SEED_DEMO_PASSWORD (10+ characters)
+docker compose up --build
+```
+
+Open http://localhost:8080. Sample data and mock SAP / CWIS / cameras are loaded; see "Trying ..." below.
+
 ## Layout
 
 | Path                | What                                                                                                                                                                     |
@@ -15,7 +26,7 @@ Phase 1 covers trucks only. CWIS, SAP and LPR are mocked behind adapters.
 
 ## Develop
 
-Requires Node 22, pnpm 10 and PostgreSQL 16 (local install, or `docker compose up -d`).
+Requires Node 22, pnpm 10 and PostgreSQL 16 (local install, or just the database in Docker: `docker compose up -d db`).
 
 ```sh
 pnpm install

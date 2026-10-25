@@ -10,6 +10,8 @@ import type { ServiceDeps } from './services/deps.js';
 import { refreshSdoCache } from './services/sdoCache.js';
 import type { Site } from './services/sites.js';
 import type { EventBus } from './events.js';
+import type { FileStore } from './files.js';
+import { purgeExpiredPhotos } from './services/retention.js';
 
 export interface JobDef {
   name: string;
@@ -22,7 +24,7 @@ export const SOON_AFTER_TRIP_CHANGE = ['cwis-push', 'do-discovery', 'sap-writes'
 
 export const SDO_FULL_REFRESH_EVERY = 20; // incremental every 3 min, full about hourly
 
-export function defineJobs(deps: ServiceDeps, site: Site): JobDef[] {
+export function defineJobs(deps: ServiceDeps & { files: FileStore }, site: Site): JobDef[] {
   let sdoRuns = 0;
   return [
     {
@@ -39,12 +41,27 @@ export function defineJobs(deps: ServiceDeps, site: Site): JobDef[] {
       everyMs: 60 * 60_000,
       run: () => syncTransporters(deps.db, deps.adapters.sap, site.id),
     },
+    {
+      name: 'photo-retention',
+      everyMs: 60 * 60_000,
+      run: () => purgeExpiredPhotos(deps.db, deps.files, site.id, deps.now()),
+    },
   ];
+}
+
+export interface JobStatus {
+  name: string;
+  running: boolean;
+  lastRunAt: Date | null;
+  lastOkAt: Date | null;
+  /** Error of the latest run, or null if it succeeded. */
+  lastError: string | null;
 }
 
 export interface JobRunner {
   /** Run a job now (still never overlapping itself). */
   runNow(name: string): Promise<void>;
+  status(): JobStatus[];
   stop(): void;
 }
 
@@ -55,16 +72,27 @@ export function startJobs(
 ): JobRunner {
   const running = new Map<string, Promise<void>>();
   const timers: NodeJS.Timeout[] = [];
+  const state = new Map<string, Omit<JobStatus, 'name' | 'running'>>(
+    jobs.map((j) => [j.name, { lastRunAt: null, lastOkAt: null, lastError: null }]),
+  );
 
   const runNow = (name: string): Promise<void> => {
     const job = jobs.find((j) => j.name === name);
     if (!job) return Promise.reject(new Error(`no job ${name}`));
     const busy = running.get(name);
     if (busy) return busy;
+    const s = state.get(name)!;
+    s.lastRunAt = new Date();
     const p = job
       .run()
-      .then(() => undefined)
-      .catch((err: Error) => log.warn({ job: name, err: err.message }, 'job failed; will retry'))
+      .then(() => {
+        s.lastOkAt = new Date();
+        s.lastError = null;
+      })
+      .catch((err: Error) => {
+        s.lastError = err.message;
+        log.warn({ job: name, err: err.message }, 'job failed; will retry');
+      })
       .finally(() => running.delete(name));
     running.set(name, p);
     return p;
@@ -90,6 +118,8 @@ export function startJobs(
 
   return {
     runNow,
+    status: () =>
+      jobs.map((j) => ({ name: j.name, running: running.has(j.name), ...state.get(j.name)! })),
     stop() {
       timers.forEach(clearInterval);
       if (pushSoon) clearTimeout(pushSoon);

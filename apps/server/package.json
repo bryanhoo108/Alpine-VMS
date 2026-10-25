@@ -10,7 +10,8 @@
     "db:migrate": "tsx --env-file-if-exists=../../.env src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=../../.env src/db/seed.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "admin": "tsx --env-file-if-exists=../../.env src/cli/admin.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",

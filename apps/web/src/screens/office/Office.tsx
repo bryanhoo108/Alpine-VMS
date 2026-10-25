@@ -46,7 +46,7 @@ export function Office({ mock }: { mock: boolean }) {
     return () => clearInterval(id);
   }, [reload]);
   useLiveEvents((e) => {
-    if (e.type === 'trip_changed' || e.type === 'alert') void reload();
+    if (e.type === 'trip_changed' || e.type === 'alert' || e.type === 'connected') void reload();
   });
 
   const openPre = preRegs.filter((p) => p.status === 'expected' || p.status === 'late').length;

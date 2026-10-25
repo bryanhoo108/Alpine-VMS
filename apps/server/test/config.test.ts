@@ -22,7 +22,20 @@ describe('loadConfig', () => {
       sessionHours: 14,
       webDir: null,
       lprWebhookToken: null,
+      https: null,
     });
+  });
+
+  it('needs both HTTPS files or neither', () => {
+    const base = { DATABASE_URL: 'x', SESSION_SECRET: SECRET };
+    expect(loadConfig(base).https).toBeNull();
+    expect(
+      loadConfig({ ...base, HTTPS_CERT_FILE: 'c.pem', HTTPS_KEY_FILE: 'k.pem' }).https,
+    ).toEqual({
+      certFile: 'c.pem',
+      keyFile: 'k.pem',
+    });
+    expect(() => loadConfig({ ...base, HTTPS_CERT_FILE: 'c.pem' })).toThrow(/both/);
   });
 
   it('rejects a bad number', () => {

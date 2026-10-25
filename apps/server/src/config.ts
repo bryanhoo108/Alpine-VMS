@@ -13,6 +13,8 @@ export interface Config {
   webDir: string | null;
   /** If set, cameras must send it in the x-vms-token header. */
   lprWebhookToken: string | null;
+  /** Certificate and key (PEM files) to serve HTTPS; both or neither. */
+  https: { certFile: string; keyFile: string } | null;
 }
 
 function required(env: NodeJS.ProcessEnv, name: string): string {
@@ -30,6 +32,15 @@ function int(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
   return n;
 }
 
+function httpsFiles(env: NodeJS.ProcessEnv): Config['https'] {
+  const certFile = env.HTTPS_CERT_FILE || '';
+  const keyFile = env.HTTPS_KEY_FILE || '';
+  if (!certFile && !keyFile) return null;
+  if (!certFile || !keyFile)
+    throw new Error('Set both HTTPS_CERT_FILE and HTTPS_KEY_FILE, or neither');
+  return { certFile, keyFile };
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const sessionSecret = required(env, 'SESSION_SECRET');
   if (sessionSecret.length < 32) throw new Error('SESSION_SECRET must be at least 32 characters');
@@ -44,5 +55,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sessionHours: int(env, 'SESSION_HOURS', 14),
     webDir: env.WEB_DIR || null,
     lprWebhookToken: env.LPR_WEBHOOK_TOKEN || null,
+    https: httpsFiles(env),
   };
 }

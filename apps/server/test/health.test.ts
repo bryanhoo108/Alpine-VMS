@@ -44,6 +44,11 @@ describe('GET /api/health', () => {
       adapters: { sap: 'mock', cwis: 'mock', lpr: 'mock' },
       trucksOnSite: 0,
       freeCards: 60,
+      queues: {
+        sapWrites: { pending: 0, oldestPendingAt: null },
+        cwisPushes: { pending: 0, oldestPendingAt: null },
+      },
+      jobs: null, // jobs do not run in tests
     });
   });
 });

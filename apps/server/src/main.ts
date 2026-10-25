@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { adapterConfigFromEnv, createAdapters } from '@vms/adapters';
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
@@ -16,7 +17,12 @@ const app = await buildApp(
     adapterConfig,
     jobs: true,
   },
-  { logger: true },
+  {
+    logger: true,
+    ...(config.https && {
+      https: { cert: readFileSync(config.https.certFile), key: readFileSync(config.https.keyFile) },
+    }),
+  },
 );
 
 const shutdown = async () => {

@@ -42,10 +42,15 @@ export interface AppContext extends AppDeps {
 
 export async function buildApp(
   deps: AppDeps,
-  opts: { logger?: boolean } = {},
+  opts: { logger?: boolean; https?: { key: Buffer; cert: Buffer } } = {},
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: opts.logger ?? false });
-  await app.register(healthRoutes, deps);
+  // HTTPS when a certificate is configured: tablets need it for the camera and NFC.
+  const app = Fastify({
+    logger: opts.logger ?? false,
+    ...(opts.https ? { https: opts.https } : {}),
+  }) as unknown as FastifyInstance;
+  let ctx: AppContext | undefined;
+  await app.register(healthRoutes, { ...deps, jobStatus: () => ctx?.jobRunner?.status() ?? null });
 
   // The rest needs a seeded site; health still answers (503) without one.
   let site: Site;
@@ -56,7 +61,7 @@ export async function buildApp(
     return app;
   }
 
-  const ctx: AppContext = {
+  ctx = {
     ...deps,
     site,
     events: new EventBus(),

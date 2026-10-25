@@ -116,7 +116,7 @@ function Waiting({ onOpen }: { onOpen: (tripId: string) => void }) {
     return () => clearInterval(id);
   }, [load]);
   useLiveEvents((e) => {
-    if (e.type === 'trip_changed') load();
+    if (e.type === 'trip_changed' || e.type === 'connected') load();
   });
 
   useCardReader(true, async (cardNo) => {

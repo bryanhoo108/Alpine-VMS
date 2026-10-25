@@ -130,7 +130,8 @@ export function GateIn({ mock }: { mock: boolean }) {
     return () => clearInterval(id);
   }, [stage, load]);
   useLiveEvents((e) => {
-    if (e.type === 'plate_read' && e.camera === 'entry' && stage === 'waiting') void load();
+    const fresh = e.type === 'connected' || (e.type === 'plate_read' && e.camera === 'entry');
+    if (fresh && stage === 'waiting') void load();
   });
 
   const red = (draft?.alerts ?? []).some((a) => a.level === 'red');

@@ -83,7 +83,8 @@ export function GateOut({ mock }: { mock: boolean }) {
     return () => clearInterval(id);
   }, [stage, load]);
   useLiveEvents((e) => {
-    if (stage === 'waiting' && e.type === 'plate_read' && e.camera === 'exit') void load();
+    const fresh = e.type === 'connected' || (e.type === 'plate_read' && e.camera === 'exit');
+    if (stage === 'waiting' && fresh) void load();
     // A check or DO done while the truck waits at the exit updates its colour.
     if (stage === 'truck' && e.type === 'trip_changed' && truck && e.tripId === truck.id) {
       void api
