@@ -1,0 +1,53 @@
+# Alpine VMS with its database.
+#
+#   Demo (mock SAP / CWIS / cameras):  set SEED_DEMO_PIN and SEED_DEMO_PASSWORD
+#   in .env, then:  docker compose up --build   →  http://localhost:8080
+#
+#   Development (database only, run the app with pnpm):  docker compose up -d db
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: vms
+    ports:
+      - '5432:5432'
+    volumes:
+      - vms-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vms -d vms']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://vms:${POSTGRES_PASSWORD:-change-me}@db:5432/vms
+      SITE_CODE: ${SITE_CODE:-APM}
+      SITE_NAME: ${SITE_NAME:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      SEED_DEMO_PIN: ${SEED_DEMO_PIN:-}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
+      IC_PHOTO_RETENTION_DAYS: ${IC_PHOTO_RETENTION_DAYS:-90}
+      SAP_ADAPTER: ${SAP_ADAPTER:-mock}
+      CWIS_ADAPTER: ${CWIS_ADAPTER:-mock}
+      LPR_ADAPTER: ${LPR_ADAPTER:-mock}
+      LPR_WEBHOOK_TOKEN: ${LPR_WEBHOOK_TOKEN:-}
+      # HTTPS for tablets: put cert.pem and key.pem in ./certs (see docs/INSTALL.md).
+      HTTPS_CERT_FILE: ${HTTPS_CERT_FILE:-}
+      HTTPS_KEY_FILE: ${HTTPS_KEY_FILE:-}
+    ports:
+      - '8080:8080'
+    volumes:
+      - vms-data:/data
+      - ./certs:/certs:ro
+    restart: unless-stopped
+
+volumes:
+  vms-pgdata:
+  vms-data:

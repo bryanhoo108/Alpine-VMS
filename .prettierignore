@@ -1,0 +1,4 @@
+pnpm-lock.yaml
+docs/SPEC.md
+CLAUDE.md
+src/db/migrations/meta
