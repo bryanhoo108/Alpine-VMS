@@ -51,6 +51,7 @@ export const alertLevel = pgEnum('alert_level', ['amber', 'red', 'logged']);
 export const watchKind = pgEnum('watch_kind', ['plate', 'transporter']);
 /** superseded = replaced by a newer write for the same DO before it was sent. */
 export const outboxStatus = pgEnum('outbox_status', ['pending', 'done', 'failed', 'superseded']);
+export const visitType = pgEnum('visit_type', ['visitor', 'contractor']);
 
 // --- Site, people, vehicles --------------------------------------------------
 
@@ -127,6 +128,8 @@ export const cards = pgTable(
     cardNo: text('card_no').notNull(),
     status: cardStatus('status').notNull().default('free'),
     currentTripId: uuid('current_trip_id').references((): AnyPgColumn => trips.id),
+    /** Set instead of currentTripId when the card is a visitor group's badge. */
+    currentVisitId: uuid('current_visit_id').references((): AnyPgColumn => visits.id),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('cards_site_card_no').on(t.siteId, t.cardNo)],
@@ -203,6 +206,8 @@ export const plateReads = pgTable(
     tripId: uuid('trip_id').references(() => trips.id),
     confirmedPlate: text('confirmed_plate'),
     corrected: boolean('corrected').notNull().default(false),
+    /** Used by a visit or the "Staff" button (trucks set trip_id instead). */
+    handledAt: ts('handled_at'),
   },
   (t) => [index('plate_reads_site_read_at').on(t.siteId, t.readAt)],
 );
@@ -211,6 +216,7 @@ export const photos = pgTable('photos', {
   id: id(),
   siteId: siteId(),
   tripId: uuid('trip_id').references(() => trips.id),
+  visitId: uuid('visit_id').references((): AnyPgColumn => visits.id),
   checkerDecisionId: uuid('checker_decision_id').references((): AnyPgColumn => checkerDecisions.id),
   kind: photoKind('kind').notNull(),
   /** Path under FILES_DIR. */
@@ -419,6 +425,7 @@ export const alerts = pgTable(
     id: id(),
     siteId: siteId(),
     tripId: uuid('trip_id').references(() => trips.id),
+    visitId: uuid('visit_id').references((): AnyPgColumn => visits.id),
     type: text('type').notNull(),
     level: alertLevel('level').notNull(),
     detail: jsonb('detail'),
@@ -491,4 +498,153 @@ export const cwisPushes = pgTable(
     doneAt: ts('done_at'),
   },
   (t) => [index('cwis_pushes_due').on(t.status, t.nextAttemptAt)],
+);
+
+// --- Visitors, contractors, staff, muster (decisions V1–V10) -----------------------
+
+/** Alpine employees visitors come to see. Not users: hosts do not sign in. */
+export const hosts = pgTable('hosts', {
+  id: id(),
+  siteId: siteId(),
+  name: text('name').notNull(),
+  department: text('department'),
+  /** Extension or mobile, for the guard to phone a walk-in's host. */
+  phone: text('phone'),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const invites = pgTable(
+  'invites',
+  {
+    id: id(),
+    siteId: siteId(),
+    /** In the QR code and readable aloud; see parseInviteCode. */
+    code: text('code').notNull(),
+    type: visitType('type').notNull(),
+    /** The person who registers for the group. */
+    name: text('name').notNull(),
+    company: text('company'),
+    phone: text('phone'),
+    groupSize: integer('group_size').notNull().default(1),
+    hostId: uuid('host_id')
+      .notNull()
+      .references(() => hosts.id),
+    purpose: text('purpose'),
+    /** Site-local dates; a contractor job can span days. */
+    validFrom: date('valid_from', { mode: 'string' }).notNull(),
+    validTo: date('valid_to', { mode: 'string' }).notNull(),
+    /** Site-local HH:MM; leaving later than this (plus grace) shows amber. */
+    untilTime: text('until_time'),
+    plate: text('plate'),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+    cancelledAt: ts('cancelled_at'),
+    cancelledBy: uuid('cancelled_by').references(() => users.id),
+  },
+  (t) => [uniqueIndex('invites_site_code').on(t.siteId, t.code)],
+);
+
+/** One visit per group per arrival: gate in to gate out. */
+export const visits = pgTable(
+  'visits',
+  {
+    id: id(),
+    siteId: siteId(),
+    /** Short readable number, e.g. V-261102-007. */
+    visitNo: text('visit_no').notNull(),
+    type: visitType('type').notNull(),
+    status: tripStatus('status').notNull().default('on_site'),
+    inviteId: uuid('invite_id').references(() => invites.id),
+    name: text('name').notNull(),
+    company: text('company'),
+    phone: text('phone'),
+    groupSize: integer('group_size').notNull(),
+    /** Only the last 4 IC digits (decision Q2); the photo is in `photos`. */
+    icLast4: text('ic_last4'),
+    hostId: uuid('host_id').references(() => hosts.id),
+    /** Invited, or the guard phoned the host and tapped "Host OK". */
+    hostConfirmed: boolean('host_confirmed').notNull(),
+    plate: text('plate'),
+    cardId: uuid('card_id').references(() => cards.id),
+    expectedUntil: ts('expected_until'),
+    gateInAt: ts('gate_in_at').notNull(),
+    gateInBy: uuid('gate_in_by')
+      .notNull()
+      .references(() => users.id),
+    gateOutAt: ts('gate_out_at'),
+    gateOutBy: uuid('gate_out_by').references(() => users.id),
+    exitLevel: exitLevel('exit_level'),
+    exitReasons: jsonb('exit_reasons'),
+    cardReturned: boolean('card_returned'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('visits_site_visit_no').on(t.siteId, t.visitNo),
+    index('visits_site_status').on(t.siteId, t.status),
+  ],
+);
+
+/** Staff cars: the guard taps "Staff" and the plate is logged. Nothing else yet (V9). */
+export const staffEntries = pgTable(
+  'staff_entries',
+  {
+    id: id(),
+    siteId: siteId(),
+    camera: camera('camera').notNull(),
+    plate: text('plate').notNull(),
+    plateReadId: uuid('plate_read_id').references(() => plateReads.id),
+    at: ts('at').notNull(),
+    loggedBy: uuid('logged_by')
+      .notNull()
+      .references(() => users.id),
+  },
+  (t) => [index('staff_entries_site_at').on(t.siteId, t.at)],
+);
+
+export interface MusterRollEntry {
+  id: string;
+  kind: 'truck' | 'visitor' | 'contractor';
+  people: number;
+  /** Plate, or the name of the person who registered the group. */
+  label: string;
+  company: string | null;
+  host: string | null;
+  cardNo: string | null;
+}
+
+/** An emergency roll call. The roll is fixed when it starts. */
+export const musters = pgTable(
+  'musters',
+  {
+    id: id(),
+    siteId: siteId(),
+    startedAt: ts('started_at').notNull(),
+    startedBy: uuid('started_by')
+      .notNull()
+      .references(() => users.id),
+    roll: jsonb('roll').$type<MusterRollEntry[]>().notNull(),
+    endedAt: ts('ended_at'),
+    endedBy: uuid('ended_by').references(() => users.id),
+  },
+  (t) => [index('musters_site_started').on(t.siteId, t.startedAt)],
+);
+
+export const musterMarks = pgTable(
+  'muster_marks',
+  {
+    siteId: siteId(),
+    musterId: uuid('muster_id')
+      .notNull()
+      .references(() => musters.id),
+    /** Trip or visit ID from the roll. */
+    entryId: text('entry_id').notNull(),
+    markedAt: ts('marked_at').notNull(),
+    markedBy: uuid('marked_by')
+      .notNull()
+      .references(() => users.id),
+  },
+  (t) => [primaryKey({ columns: [t.musterId, t.entryId] })],
 );

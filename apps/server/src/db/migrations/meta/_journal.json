@@ -22,6 +22,13 @@
       "when": 1792594592253,
       "tag": "0002_sap_write_trip",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793245718334,
+      "tag": "0003_visitors",
+      "breakpoints": true
     }
   ]
 }

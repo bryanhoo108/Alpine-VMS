@@ -9,6 +9,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -18,11 +19,22 @@ import {
   RotateCcw,
   SearchX,
   TriangleAlert,
+  HardHat,
   Truck,
+  UserRound,
+  UsersRound,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { api, ApiError, type ExitState, type ExitTruck, type GateOutResponse } from '../api';
+import {
+  api,
+  ApiError,
+  type ExitState,
+  type ExitTruck,
+  type GateOutResponse,
+  type VisitExit,
+  type VisitOutResponse,
+} from '../api';
 import { BigButton } from '../components/BigButton';
 import { PlateCard } from '../components/PlateCard';
 import { useAlarm } from '../hooks/useAlarm';
@@ -30,13 +42,25 @@ import { useCardReader } from '../hooks/useCardReader';
 import { useLiveEvents } from '../hooks/useLiveEvents';
 import { formatPlate } from '../plate';
 
-type Stage = 'waiting' | 'truck' | 'unknown' | 'pick' | 'no-card' | 'done';
+type Stage =
+  | 'waiting'
+  | 'truck'
+  | 'unknown'
+  | 'pick'
+  | 'no-card'
+  | 'done'
+  | 'people'
+  | 'visit'
+  | 'visit-no-card'
+  | 'visit-done'
+  | 'staff';
 
 const CARD_ERRORS: Record<string, string> = {
   CARD_ON_OTHER_TRIP: 'Wrong card',
   CARD_NOT_ISSUED: 'Wrong card',
   CARD_UNKNOWN: 'Card not known',
   CARD_NOT_ON_TRIP: 'Card not in use',
+  CARD_NOT_ON_VISIT: 'Card not in use',
 };
 
 const DONE_SECONDS = 5;
@@ -56,16 +80,25 @@ export function GateOut({ mock }: { mock: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<GateOutResponse | null>(null);
+  const [people, setPeople] = useState<VisitExit[]>([]);
+  const [visit, setVisit] = useState<VisitExit | null>(null);
+  const [visitResult, setVisitResult] = useState<VisitOutResponse | null>(null);
   const ignoredReads = useRef(new Set<string>());
 
   const load = useCallback(async () => {
-    const s = await api.get<ExitState>('/api/gate/exit');
+    const [s, p] = await Promise.all([
+      api.get<ExitState>('/api/gate/exit'),
+      api.get<VisitExit[]>('/api/gate/exit/people'),
+    ]);
+    setPeople(p);
     setState(s);
     return s;
   }, []);
 
   const reset = useCallback(() => {
     setTruck(null);
+    setVisit(null);
+    setVisitResult(null);
     setReadId(null);
     setError(null);
     setResult(null);
@@ -106,9 +139,12 @@ export function GateOut({ mock }: { mock: boolean }) {
     }
   }, [state, stage]);
 
-  const red = truck?.status.level === 'red';
-  useAlarm(red && stage === 'truck', truck?.id ?? null);
+  const red =
+    (stage === 'truck' && truck?.status.level === 'red') ||
+    (stage === 'visit' && visit?.status.level === 'red');
+  useAlarm(red, truck?.id ?? visit?.id ?? null);
   useAlarm(result?.status.level === 'red', result?.trip.id ?? null);
+  useAlarm(visitResult?.status.level === 'red', visitResult?.visit.id ?? null);
 
   const submit = async (tripId: string, cardNo: string | null) => {
     if (busy) return;
@@ -132,22 +168,100 @@ export function GateOut({ mock }: { mock: boolean }) {
     }
   };
 
-  // Card tap: with a truck open it must be that truck's card; otherwise it finds the truck.
-  const onCard = async (cardNo: string) => {
-    if (stage === 'truck' && truck) return submit(truck.id, cardNo);
+  const submitVisit = async (visitId: string, cardNo: string | null) => {
+    if (busy) return;
+    setBusy(true);
     setError(null);
     try {
-      const found = await api.get<ExitTruck>(`/api/gate/exit/card/${encodeURIComponent(cardNo)}`);
+      const res = await api.post<VisitOutResponse>('/api/gate/visit-out', {
+        visitId,
+        cardNo,
+        // The exit camera read their car: use it up so it does not come back.
+        plateReadId: stage === 'unknown' || visit?.plate === state?.read?.plate ? readId : null,
+      });
+      if (readId) ignoredReads.current.add(readId);
+      setVisitResult(res);
+      setStage('visit-done');
+    } catch (e) {
+      const code = e instanceof ApiError ? e.code : 'NETWORK';
+      setError(CARD_ERRORS[code] ?? 'Not saved');
+      if (stage === 'visit-no-card') setStage('visit');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Card tap: with a truck or group open it must be its card; otherwise it finds who it is.
+  const onCard = async (cardNo: string) => {
+    if (stage === 'truck' && truck) return submit(truck.id, cardNo);
+    if (stage === 'visit' && visit) return submitVisit(visit.id, cardNo);
+    setError(null);
+    const enc = encodeURIComponent(cardNo);
+    try {
+      const found = await api.get<ExitTruck>(`/api/gate/exit/card/${enc}`);
       setTruck(found);
       await submit(found.id, cardNo);
     } catch (e) {
-      setError(CARD_ERRORS[e instanceof ApiError ? e.code : ''] ?? 'Card not known');
+      const code = e instanceof ApiError ? e.code : '';
+      if (code !== 'CARD_ON_VISIT') {
+        setError(CARD_ERRORS[code] ?? 'Card not known');
+        return;
+      }
+      // A visitor group's card: one tap and they are out.
+      try {
+        const found = await api.get<VisitExit>(`/api/gate/exit/visit-card/${enc}`);
+        setVisit(found);
+        await submitVisit(found.id, cardNo);
+      } catch (e2) {
+        setError(CARD_ERRORS[e2 instanceof ApiError ? e2.code : ''] ?? 'Card not known');
+      }
     }
   };
   useCardReader(
-    stage === 'waiting' || stage === 'truck' || stage === 'unknown' || stage === 'pick',
+    stage === 'waiting' ||
+      stage === 'truck' ||
+      stage === 'unknown' ||
+      stage === 'pick' ||
+      stage === 'people' ||
+      stage === 'visit',
     (c) => void onCard(c),
   );
+
+  const openVisit = (v: VisitExit) => {
+    setVisit(v);
+    setError(null);
+    setStage('visit');
+  };
+
+  /** A car that is not a truck: is it a visitor's car? */
+  const visitorCar = () => {
+    const plate = state?.read?.plate;
+    const match = plate ? people.find((p) => p.plate === plate) : undefined;
+    if (match) openVisit(match);
+    else setStage('people');
+  };
+
+  const logStaff = async () => {
+    if (!state?.read || busy) return;
+    setBusy(true);
+    try {
+      await api.post('/api/gate/staff', {
+        camera: 'exit',
+        plate: state.read.plate,
+        plateReadId: state.read.id,
+      });
+      ignoredReads.current.add(state.read.id);
+      setStage('staff');
+    } catch {
+      setError('Not saved');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const testVisitCard = async () => {
+    if (visit?.cardNo) await submitVisit(visit.id, visit.cardNo);
+  };
 
   const testCard = async () => {
     if (!truck) return;
@@ -166,8 +280,8 @@ export function GateOut({ mock }: { mock: boolean }) {
   };
 
   useEffect(() => {
-    if (stage !== 'done') return;
-    const id = setTimeout(reset, DONE_SECONDS * 1000);
+    if (stage !== 'done' && stage !== 'visit-done' && stage !== 'staff') return;
+    const id = setTimeout(reset, (stage === 'staff' ? 2 : DONE_SECONDS) * 1000);
     return () => clearTimeout(id);
   }, [stage, reset]);
 
@@ -210,6 +324,155 @@ export function GateOut({ mock }: { mock: boolean }) {
     );
   }
 
+  if (stage === 'visit-done' && visitResult) {
+    const look = LOOK[visitResult.status.level];
+    const shown = visitResult.status.reasons.filter((r) => r.level !== 'logged');
+    const others = visitResult.visit.groupSize - 1;
+    return (
+      <button
+        type="button"
+        data-testid="visit-out-done"
+        data-level={visitResult.status.level}
+        onClick={reset}
+        className={`flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl text-white ${look.bg}`}
+      >
+        <div className="text-7xl font-black">OUT</div>
+        <div className="flex items-center gap-3 text-5xl font-black">
+          <PersonIcon type={visitResult.visit.type} className="size-14" />
+          {visitResult.visit.name}
+        </div>
+        {others > 0 && <div className="text-4xl font-extrabold">+ {others} people</div>}
+        <div className="text-3xl font-bold">{visitResult.visit.visitNo}</div>
+        {shown.length > 0 && (
+          <div className="px-4 text-center text-3xl font-extrabold">
+            {shown.map((r) => r.label).join(' · ')}
+          </div>
+        )}
+        <div className="mt-2 flex items-center gap-2 text-2xl font-bold opacity-90">
+          <ArrowRight className="size-8" /> Next
+        </div>
+      </button>
+    );
+  }
+
+  if (stage === 'staff') {
+    return (
+      <button
+        type="button"
+        onClick={reset}
+        data-testid="staff-done"
+        className="flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl bg-ok text-white"
+      >
+        <BadgeCheck className="size-24" />
+        <div className="text-6xl font-black">STAFF OUT</div>
+        <div className="font-mono text-5xl font-black">{formatPlate(state?.read?.plate ?? '')}</div>
+      </button>
+    );
+  }
+
+  if (stage === 'people') {
+    return (
+      <PeoplePicker
+        list={people}
+        onPick={openVisit}
+        onBack={() => setStage(readId ? 'unknown' : 'waiting')}
+      />
+    );
+  }
+
+  if ((stage === 'visit' || stage === 'visit-no-card') && visit) {
+    const vlook = LOOK[visit.status.level];
+    const vreasons = visit.status.reasons.filter((r) => r.level !== 'logged');
+    if (stage === 'visit-no-card') {
+      return (
+        <div className="flex h-full min-h-0 flex-col gap-3">
+          <div className="flex items-center gap-4 rounded-2xl bg-bad px-5 py-4 text-white">
+            <CreditCard className="size-12" />
+            <div className="text-4xl font-extrabold">No card?</div>
+            <div className="ml-auto truncate text-3xl font-black">{visit.name}</div>
+          </div>
+          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+            <BigButton
+              tone="plain"
+              icon={ArrowLeft}
+              label="Back"
+              onClick={() => setStage('visit')}
+            />
+            <BigButton
+              tone="bad"
+              icon={X}
+              label="Yes, no card"
+              disabled={busy}
+              onClick={() => void submitVisit(visit.id, null)}
+            />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <TwoPane
+        left={
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            <div
+              data-testid="exit-status"
+              data-level={visit.status.level}
+              className={`flex items-center gap-4 rounded-2xl px-5 py-4 text-white ${vlook.bg}`}
+            >
+              <vlook.icon className="size-14 shrink-0" />
+              <div className="min-w-0">
+                <div className="text-4xl font-black">{vlook.text}</div>
+                {vreasons.length > 0 && (
+                  <div className="text-2xl font-bold">
+                    {vreasons.map((r) => r.label).join(' · ')}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-panel p-4 text-center">
+              <PersonIcon type={visit.type} className="size-20 text-muted" />
+              <div className="text-5xl font-black">{visit.name}</div>
+              <div
+                className="flex items-center gap-2 text-4xl font-extrabold"
+                data-testid="exit-group"
+              >
+                <UsersRound className="size-10" /> {visit.groupSize}
+              </div>
+              <div className="text-2xl text-muted">
+                {[visit.company, visit.host && `host ${visit.host}`].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+          </div>
+        }
+        right={
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            {errorBanner}
+            <CardBox />
+            <div className="grid grid-cols-2 gap-3">
+              <BigButton
+                size="md"
+                tone="bad"
+                icon={X}
+                label="No card"
+                onClick={() => setStage('visit-no-card')}
+              />
+              <BigButton size="md" tone="plain" icon={ArrowLeft} label="Cancel" onClick={cancel} />
+            </div>
+            {mock && (
+              <BigButton
+                size="sm"
+                tone="plain"
+                icon={CreditCard}
+                label="Test card"
+                disabled={busy}
+                onClick={() => void testVisitCard()}
+              />
+            )}
+          </div>
+        }
+      />
+    );
+  }
+
   if (stage === 'pick') {
     return (
       <Picker
@@ -233,13 +496,22 @@ export function GateOut({ mock }: { mock: boolean }) {
           <div className="flex h-full min-h-0 flex-col gap-3">
             {errorBanner}
             <CardBox />
-            <BigButton
-              size="md"
-              tone="plain"
-              icon={List}
-              label={`Trucks inside (${onSite.length})`}
-              onClick={() => setStage('pick')}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <BigButton
+                size="md"
+                tone="plain"
+                icon={List}
+                label={`Trucks (${onSite.length})`}
+                onClick={() => setStage('pick')}
+              />
+              <BigButton
+                size="md"
+                tone="plain"
+                icon={UsersRound}
+                label={`People (${people.length})`}
+                onClick={() => setStage('people')}
+              />
+            </div>
           </div>
         }
       />
@@ -271,12 +543,29 @@ export function GateOut({ mock }: { mock: boolean }) {
             {errorBanner}
             <CardBox />
             <BigButton
-              className="flex-1"
+              size="md"
               tone="action"
               icon={List}
               label="Pick truck"
               onClick={() => setStage('pick')}
             />
+            <div className="grid grid-cols-2 gap-3">
+              <BigButton
+                size="md"
+                tone="plain"
+                icon={UserRound}
+                label="Visitor"
+                onClick={visitorCar}
+              />
+              <BigButton
+                size="md"
+                tone="plain"
+                icon={BadgeCheck}
+                label="Staff"
+                disabled={busy}
+                onClick={() => void logStaff()}
+              />
+            </div>
             <BigButton size="sm" tone="plain" icon={X} label="Cancel" onClick={cancel} />
           </div>
         }
@@ -429,6 +718,80 @@ function Picker({
                 <span className="font-mono text-3xl font-black">{formatPlate(t.plate)}</span>
                 <span className="text-lg font-semibold text-muted">
                   {t.type === 'outbound' ? 'Collect' : 'Deliver'} · {t.tripNo}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {pages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <BigButton
+            size="sm"
+            tone="plain"
+            icon={ChevronLeft}
+            label="Back"
+            disabled={page === 0}
+            onClick={() => setPage(page - 1)}
+          />
+          <div className="text-xl font-bold">
+            {page + 1} / {pages}
+          </div>
+          <BigButton
+            size="sm"
+            tone="plain"
+            icon={ChevronRight}
+            label="More"
+            disabled={page >= pages - 1}
+            onClick={() => setPage(page + 1)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PersonIcon = ({ type, className }: { type: VisitExit['type']; className?: string }) =>
+  type === 'contractor' ? <HardHat className={className} /> : <UserRound className={className} />;
+
+function PeoplePicker({
+  list,
+  onPick,
+  onBack,
+}: {
+  list: VisitExit[];
+  onPick: (v: VisitExit) => void;
+  onBack: () => void;
+}) {
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  const shown = list.slice(page * PAGE, page * PAGE + PAGE);
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <BigButton size="sm" tone="plain" icon={ArrowLeft} label="Back" onClick={onBack} />
+        <h2 className="text-3xl font-extrabold">People inside</h2>
+      </div>
+      {list.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center rounded-2xl bg-panel text-3xl font-bold text-muted">
+          None
+        </div>
+      ) : (
+        <ul
+          aria-label="People inside"
+          className="grid min-h-0 flex-1 grid-cols-2 grid-rows-3 gap-3 landscape:grid-cols-3 landscape:grid-rows-2"
+        >
+          {shown.map((v) => (
+            <li key={v.id} className="min-h-0">
+              <button
+                type="button"
+                onClick={() => onPick(v)}
+                className="flex h-full w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-4 border-slate-300 bg-panel p-2 text-center active:bg-slate-100"
+              >
+                <PersonIcon type={v.type} className="size-8 text-muted" />
+                <span className="line-clamp-2 text-2xl font-black">{v.name}</span>
+                <span className="text-lg font-semibold text-muted">
+                  {v.groupSize > 1 ? `${v.groupSize} people` : '1 person'}
                 </span>
               </button>
             </li>

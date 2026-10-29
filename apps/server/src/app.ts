@@ -11,6 +11,7 @@ import { FileStore } from './files.js';
 import { defineJobs, startJobs, type JobRunner } from './jobs.js';
 import { authRoutes } from './routes/auth.js';
 import { checkerRoutes } from './routes/checker.js';
+import { visitorRoutes } from './routes/visitors.js';
 import { clerkRoutes } from './routes/clerk.js';
 import { AutoPlay } from './demo/autoplay.js';
 import { buildDemoDay } from './demo/scenario.js';
@@ -33,6 +34,8 @@ export interface AppDeps {
   jobs?: boolean;
   /** Demo with mock adapters: build the busy sample day on start; start auto-play. */
   demo?: { day: boolean; autoplay: boolean };
+  /** Browser-test server only: gets the live context (to stop auto-play between tests). */
+  onContext?: (ctx: AppContext) => void;
 }
 
 /** Everything routes and services need, built once at start. */
@@ -104,6 +107,7 @@ export async function buildApp(
   await app.register(eventRoutes, ctx);
   await app.register(clerkRoutes, ctx);
   await app.register(checkerRoutes, ctx);
+  await app.register(visitorRoutes, ctx);
   const { lpr, cwis, sap } = deps.adapters.mocks;
   const demo: DevContext | null =
     lpr && cwis && sap ? Object.assign(ctx, { mocks: { lpr, cwis, sap } }) : null;
@@ -127,6 +131,7 @@ export async function buildApp(
     if (deps.demo?.autoplay) ctx.autoplay.start();
     app.addHook('onClose', async () => ctx.autoplay?.stop());
   }
+  deps.onContext?.(ctx);
 
   // Camera reads arrive from the LPR adapter (webhook for real cameras, dev panel for the mock).
   const off = deps.adapters.lpr.onPlateEvent(async (event) => {

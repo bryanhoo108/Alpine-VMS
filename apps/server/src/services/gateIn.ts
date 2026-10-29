@@ -68,7 +68,7 @@ async function openPreRegs(db: DbOrTx, siteId: string, today: string) {
   };
 }
 
-async function activeWatchlist(db: DbOrTx, siteId: string) {
+export async function activeWatchlist(db: DbOrTx, siteId: string) {
   return db
     .select({ kind: watchlist.kind, value: watchlist.value, reason: watchlist.reason })
     .from(watchlist)
@@ -142,6 +142,7 @@ export async function entryState(deps: ServiceDeps, site: Site): Promise<EntrySt
         eq(plateReads.siteId, site.id),
         eq(plateReads.camera, 'entry'),
         isNull(plateReads.tripId),
+        isNull(plateReads.handledAt),
         gte(plateReads.readAt, fresh),
       ),
     )
@@ -262,6 +263,7 @@ export async function gateIn(
                 eq(plateReads.siteId, site.id),
                 eq(plateReads.id, input.plateReadId),
                 isNull(plateReads.tripId),
+                isNull(plateReads.handledAt),
               ),
             )
         )[0]

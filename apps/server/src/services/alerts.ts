@@ -7,13 +7,14 @@ import type { DbOrTx } from './audit.js';
 
 export type AlertRow = typeof alerts.$inferSelect;
 
-/** Store alerts for a trip. Call inside the trip's transaction; deliver after commit. */
+/** Store alerts for a trip or visit. Call inside its transaction; deliver after commit. */
 export async function recordAlerts(
   db: DbOrTx,
   siteId: string,
   tripId: string | null,
   raised: readonly RaisedAlert[],
   at: Date,
+  visitId: string | null = null,
 ): Promise<AlertRow[]> {
   if (raised.length === 0) return [];
   return db
@@ -22,6 +23,7 @@ export async function recordAlerts(
       raised.map((a) => ({
         siteId,
         tripId,
+        visitId,
         type: a.type,
         level: a.level,
         detail: a.detail ?? null,

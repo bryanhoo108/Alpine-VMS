@@ -149,6 +149,7 @@ export interface OfficeAlert {
   tripId?: string | null;
   tripNo?: string | null;
   plate?: string | null;
+  visitName?: string | null;
 }
 
 export interface TripDetail {
@@ -367,4 +368,103 @@ export interface Overview {
     cwisWaiting: number;
     cwisOldestWaitingAt: string | null;
   };
+}
+
+// --- Visitors and contractors ---
+
+export type VisitType = 'visitor' | 'contractor';
+
+export interface Host {
+  id: string;
+  name: string;
+  department: string | null;
+  phone: string | null;
+  active: boolean;
+}
+
+export interface Invite {
+  id: string;
+  code: string;
+  qrText: string;
+  type: VisitType;
+  name: string;
+  company: string | null;
+  phone: string | null;
+  groupSize: number;
+  host: { id: string; name: string; department: string | null } | null;
+  purpose: string | null;
+  validFrom: string;
+  validTo: string;
+  untilTime: string | null;
+  plate: string | null;
+  createdAt: string;
+  state: 'not_yet' | 'expected' | 'expired' | 'cancelled';
+  insideVisitId: string | null;
+  lastArrivalAt: string | null;
+}
+
+export interface VisitInResponse {
+  visit: {
+    id: string;
+    visitNo: string;
+    type: VisitType;
+    name: string;
+    company: string | null;
+    groupSize: number;
+    host: string | null;
+  };
+  cardNo: string;
+  alerts: Alert[];
+}
+
+export interface ExitStatus {
+  level: 'green' | 'amber' | 'red';
+  reasons: Alert[];
+}
+
+export interface VisitExit {
+  id: string;
+  visitNo: string;
+  type: VisitType;
+  name: string;
+  company: string | null;
+  groupSize: number;
+  host: string | null;
+  plate: string | null;
+  cardNo: string | null;
+  gateInAt: string;
+  expectedUntil: string | null;
+  status: ExitStatus;
+}
+
+export interface VisitOutResponse {
+  visit: { id: string; visitNo: string; type: VisitType; name: string; groupSize: number };
+  status: ExitStatus;
+  cardReturned: boolean;
+}
+
+export interface MusterEntry {
+  id: string;
+  kind: 'truck' | VisitType;
+  people: number;
+  label: string;
+  company: string | null;
+  host: string | null;
+  cardNo: string | null;
+}
+
+export interface People {
+  headcount: { total: number; truckDrivers: number; visitors: number; contractors: number };
+  roll: MusterEntry[];
+}
+
+export interface Muster {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  roll: (MusterEntry & { safe: boolean })[];
+  people: number;
+  safePeople: number;
+  groups: number;
+  safeGroups: number;
 }

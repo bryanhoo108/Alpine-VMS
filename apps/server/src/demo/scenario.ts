@@ -5,7 +5,8 @@
  * alert is genuine. Rebuilt from scratch on each start when DEMO_DAY=on.
  *
  * Kept free for the presenter's own live demo: the pre-registered trucks
- * WXY 1234 (SDO 5005), BPN 2045 (5009, 5010) and BMK 7710 (5007, late).
+ * WXY 1234 (SDO 5005), BPN 2045 (5009, 5010) and BMK 7710 (5007, late), and
+ * the invites DEMV2345 (visitor) and DEMC6789 (contractor crew of 4).
  */
 import { sql } from 'drizzle-orm';
 import { seedSampleData } from '../db/seed.js';
@@ -18,6 +19,8 @@ import {
   leave,
   makeDo,
   match,
+  visitorArrives,
+  visitorLeaves,
   weighIn,
   weighOut,
   type DemoContext,
@@ -46,6 +49,12 @@ const DAY_TABLES = [
   'cards',
   'vehicles',
   'persons',
+  'visits',
+  'invites',
+  'hosts',
+  'staff_entries',
+  'musters',
+  'muster_marks',
 ];
 
 interface Step {
@@ -71,6 +80,16 @@ function story(c: DemoContext, u: DemoUsers): Step[] {
     run: async () => ids.set(plate, await arrive(c, u, plate, { type, transporterCode })),
   });
   const at = (ago: number, run: () => Promise<unknown>): Step => ({ ago, run });
+  const visitIds = new Map<string, string>();
+  const vid = (name: string) => {
+    const v = visitIds.get(name);
+    if (!v) throw new Error(`${name} has not arrived`);
+    return v;
+  };
+  const visitor = (ago: number, o: Parameters<typeof visitorArrives>[2]): Step => ({
+    ago,
+    run: async () => visitIds.set(o.name, await visitorArrives(c, u, o)),
+  });
 
   return [
     // --- Left already ------------------------------------------------------------
@@ -148,6 +167,54 @@ function story(c: DemoContext, u: DemoUsers): Step[] {
     at(30, () => makeDo(c, ['5001'])),
     // 15. Watchlisted plate came in: red alert open.
     inn(20, 'BQL 1187', 'outbound', 'T0004'),
+
+    // --- Visitors and contractors (sample invites DEMV2345 / DEMC6789 stay free) ---
+    // Supplier rep, invited, left on time: green.
+    visitor(280, {
+      name: 'Supplier Delta Rep',
+      type: 'visitor',
+      company: 'Supplier Delta',
+      groupSize: 1,
+      host: 'Sales Manager',
+      untilMinutes: 90,
+    }),
+    at(220, () => visitorLeaves(c, u, vid('Supplier Delta Rep'))),
+    // Pump service crew, invited until a set time, left 50 minutes late: amber.
+    visitor(260, {
+      name: 'Pump Service Lead',
+      type: 'contractor',
+      company: 'Pump Services Sdn Bhd',
+      groupSize: 3,
+      host: 'Plant Engineer',
+      untilMinutes: 60,
+    }),
+    at(150, () => visitorLeaves(c, u, vid('Pump Service Lead'))),
+    // Inside: roof repair crew of 5 since the morning.
+    visitor(200, {
+      name: 'Roof Repair Lead',
+      type: 'contractor',
+      company: 'Roof Works Sdn Bhd',
+      groupSize: 5,
+      host: 'Plant Engineer',
+    }),
+    // Inside: audit team of 3, invited for the afternoon.
+    visitor(120, {
+      name: 'Audit Team Lead',
+      type: 'visitor',
+      company: 'Customer Alpha Sdn Bhd',
+      groupSize: 3,
+      host: 'Sales Manager',
+      untilMinutes: 240,
+    }),
+    // Inside: walk-in whose host did not answer: amber alert.
+    visitor(40, {
+      name: 'Walk-in Salesman',
+      type: 'visitor',
+      company: 'Office Supplies Co',
+      groupSize: 1,
+      host: 'HR Executive',
+      hostAnswered: false,
+    }),
   ];
 }
 

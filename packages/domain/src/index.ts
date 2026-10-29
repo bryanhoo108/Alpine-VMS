@@ -9,3 +9,4 @@ export * from './preRegistration.js';
 export * from './ticketMatching.js';
 export * from './sdoShortlist.js';
 export * from './checker.js';
+export * from './visits.js';

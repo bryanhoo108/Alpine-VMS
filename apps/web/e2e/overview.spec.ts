@@ -60,6 +60,20 @@ test('supervisor sees the live overview of a busy day and a truck timeline', asy
   await play.click();
   const stop = page.getByRole('button', { name: 'Stop auto-play' });
   await expect(stop).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Speed 1×' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  // Fast forward: 10× moves a truck every 2 seconds; auto-play trucks have JQ plates.
+  await page.getByRole('button', { name: 'Speed 10×' }).click();
+  await expect(page.getByRole('button', { name: 'Speed 10×' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(inside).toContainText('JQ', { timeout: 10_000 });
+  await expectNoSidewaysOverflow(page);
+  await page.screenshot(shot('4-fast-forward'));
   await stop.click();
   await expect(page.getByRole('button', { name: 'Auto-play' })).toHaveAttribute(
     'aria-pressed',

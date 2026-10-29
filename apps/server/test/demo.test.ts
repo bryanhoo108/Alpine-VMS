@@ -2,7 +2,7 @@ import { eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DemoContext } from '../src/demo/actions.js';
 import { AUTOPLAY_PREFIX, AutoPlay } from '../src/demo/autoplay.js';
-import { trips } from '../src/db/schema.js';
+import { trips, visits } from '../src/db/schema.js';
 import { FileStore } from '../src/files.js';
 import { createTestApp, type TestApp } from './helpers/testApp.js';
 
@@ -97,6 +97,33 @@ describe('demo day', () => {
     expect(t.events.find((e: { kind: string }) => e.kind === 'check').actor).toBe('Checker 1');
   });
 
+  it('has visitor and contractor groups: 3 inside (9 people), 2 that left', async () => {
+    const people = await get('/api/people');
+    expect(people.headcount).toEqual({
+      total: 18,
+      truckDrivers: 9,
+      visitors: 4,
+      contractors: 5,
+    });
+    const rows = await h.t.db.select().from(visits);
+    const left = rows.filter((v) => v.status === 'closed');
+    expect(left.map((v) => [v.name, v.exitLevel]).sort()).toEqual([
+      ['Pump Service Lead', 'amber'],
+      ['Supplier Delta Rep', 'green'],
+    ]);
+    const walkIn = rows.find((v) => v.name === 'Walk-in Salesman')!;
+    expect(walkIn.hostConfirmed).toBe(false);
+    // The presenter's sample invites are still free.
+    const invites = await get('/api/invites');
+    const free = invites.filter((i: { code: string; insideVisitId: string | null }) =>
+      ['DEMV2345', 'DEMC6789'].includes(i.code),
+    );
+    expect(free.map((i: { insideVisitId: string | null }) => i.insideVisitId)).toEqual([
+      null,
+      null,
+    ]);
+  });
+
   it('timeline shows the problems of the red exit', async () => {
     const t = await get(`/api/trips/${await tripId('WRC6630')}/timeline`);
     const last = t.events.at(-1);
@@ -182,14 +209,29 @@ describe('auto-play', () => {
       headers: { cookie: supervisor },
       payload: { on: true },
     });
-    expect(on.json()).toEqual({ autoplay: true });
+    expect(on.json()).toEqual({ autoplay: true, speed: 1 });
     expect((await get('/api/dev')).autoplay).toBe(true);
+    const fast = await h.app.inject({
+      method: 'POST',
+      url: '/api/dev/demo/autoplay',
+      headers: { cookie: supervisor },
+      payload: { on: true, speed: 10 },
+    });
+    expect(fast.json()).toEqual({ autoplay: true, speed: 10 });
+    expect((await get('/api/dev')).autoplaySpeed).toBe(10);
+    const bad = await h.app.inject({
+      method: 'POST',
+      url: '/api/dev/demo/autoplay',
+      headers: { cookie: supervisor },
+      payload: { on: true, speed: 50 },
+    });
+    expect(bad.statusCode).toBe(400);
     const off = await h.app.inject({
       method: 'POST',
       url: '/api/dev/demo/autoplay',
       headers: { cookie: supervisor },
       payload: { on: false },
     });
-    expect(off.json()).toEqual({ autoplay: false });
+    expect(off.json()).toEqual({ autoplay: false, speed: 10 });
   });
 });

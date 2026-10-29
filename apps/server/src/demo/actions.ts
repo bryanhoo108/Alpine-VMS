@@ -6,14 +6,17 @@
 import { plateImageSvg, type MockCwisAdapter, type MockSapAdapter } from '@vms/adapters';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { AppContext } from '../app.js';
-import { cards, transporters, trips, users, weighTickets } from '../db/schema.js';
+import { cards, hosts, transporters, trips, users, visits, weighTickets } from '../db/schema.js';
 import { checkView, decide } from '../services/checker.js';
 import { linkSdos } from '../services/clerk.js';
 import { pollCwisTickets, sendCwisPushes } from '../services/cwis.js';
 import { discoverDos, sendSapWrites } from '../services/dos.js';
 import { gateIn } from '../services/gateIn.js';
 import { gateOut } from '../services/gateOut.js';
+import { createInvite } from '../services/invites.js';
 import { recordPlateRead } from '../services/plateReads.js';
+import { visitGateIn, visitGateOut } from '../services/visits.js';
+import { siteDate } from '../time.js';
 
 export interface DemoContext extends AppContext {
   mocks: { sap: MockSapAdapter; cwis: MockCwisAdapter };
@@ -189,4 +192,96 @@ export async function leave(c: DemoContext, u: DemoUsers, tripId: string, cardRe
 export async function flush(c: DemoContext) {
   await sendCwisPushes(c, c.site);
   await sendSapWrites(c, c.site);
+}
+
+/** Site-local HH:MM of a moment, for invite end times. */
+function localTime(c: AppContext, at: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: c.site.timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(at);
+}
+
+/** End time that many minutes from now, kept within today (an invite is per day). */
+function untilToday(c: AppContext, now: Date, minutes: number): string {
+  const until = new Date(now.getTime() + minutes * 60_000);
+  const sameDay = siteDate(until, c.site.timezone) === siteDate(now, c.site.timezone);
+  return sameDay ? localTime(c, until) : '23:59';
+}
+
+async function hostId(c: AppContext, name: string): Promise<string> {
+  const [h] = await c.db
+    .select({ id: hosts.id })
+    .from(hosts)
+    .where(and(eq(hosts.siteId, c.site.id), eq(hosts.name, name)));
+  if (!h) throw new Error(`host ${name} not found`);
+  return h.id;
+}
+
+/**
+ * A visitor or contractor group comes in. With `untilMinutes` they were
+ * invited (end time that many minutes from now); otherwise a walk-in whose
+ * host did or did not answer the guard's call.
+ */
+export async function visitorArrives(
+  c: DemoContext,
+  u: DemoUsers,
+  o: {
+    name: string;
+    type: 'visitor' | 'contractor';
+    company: string;
+    groupSize: number;
+    host: string;
+    untilMinutes?: number;
+    hostAnswered?: boolean;
+  },
+): Promise<string> {
+  const now = c.now();
+  const invite =
+    o.untilMinutes === undefined
+      ? null
+      : await createInvite(c, c.site, u.clerk, {
+          type: o.type,
+          name: o.name,
+          company: o.company,
+          phone: null,
+          groupSize: o.groupSize,
+          hostId: await hostId(c, o.host),
+          purpose: null,
+          validFrom: siteDate(now, c.site.timezone),
+          validTo: siteDate(now, c.site.timezone),
+          untilTime: untilToday(c, now, o.untilMinutes),
+          plate: null,
+        });
+  const res = await visitGateIn(c, c.site, u.guardIn, {
+    inviteId: invite?.id ?? null,
+    type: o.type,
+    name: o.name,
+    company: o.company,
+    phone: null,
+    hostId: invite ? null : await hostId(c, o.host),
+    groupSize: o.groupSize,
+    hostConfirmed: o.hostAnswered ?? true,
+    plate: null,
+    plateReadId: null,
+    cardNo: await freeCard(c),
+    photoIds: [],
+  });
+  if (!res.ok) throw new Error(`visit in ${o.name}: ${res.error}`);
+  return res.visit.id;
+}
+
+export async function visitorLeaves(c: DemoContext, u: DemoUsers, visitId: string) {
+  const [v] = await c.db
+    .select({ cardNo: cards.cardNo })
+    .from(visits)
+    .leftJoin(cards, eq(cards.id, visits.cardId))
+    .where(eq(visits.id, visitId));
+  await visitGateOut(c, c.site, u.guardOut, {
+    visitId,
+    cardNo: v?.cardNo ?? null,
+    plateReadId: null,
+  });
 }

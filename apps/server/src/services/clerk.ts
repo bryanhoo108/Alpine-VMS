@@ -25,6 +25,7 @@ import {
   users,
   vehicles,
   weighTickets,
+  visits,
 } from '../db/schema.js';
 import { addDays, siteDate } from '../time.js';
 import { audit, type DbOrTx } from './audit.js';
@@ -611,16 +612,25 @@ const alertView = (a: typeof alerts.$inferSelect) => ({
 /** Open amber and red alerts (logged-only ones are history, not exceptions). */
 export async function openAlerts(deps: ServiceDeps, site: Site) {
   const rows = await deps.db
-    .select({ a: alerts, tripNo: trips.tripNo, plate: trips.plateIn })
+    .select({
+      a: alerts,
+      tripNo: trips.tripNo,
+      plate: trips.plateIn,
+      visitNo: visits.visitNo,
+      visitName: visits.name,
+    })
     .from(alerts)
     .leftJoin(trips, eq(trips.id, alerts.tripId))
+    .leftJoin(visits, eq(visits.id, alerts.visitId))
     .where(and(eq(alerts.siteId, site.id), isNull(alerts.clearedAt), ne(alerts.level, 'logged')))
     .orderBy(sql`case when ${alerts.level} = 'red' then 0 else 1 end`, desc(alerts.raisedAt));
   return rows.map((r) => ({
     ...alertView(r.a),
     tripId: r.a.tripId,
-    tripNo: r.tripNo,
+    tripNo: r.tripNo ?? r.visitNo,
     plate: r.plate,
+    /** Visitor or contractor group the alert is about. */
+    visitName: r.visitName,
   }));
 }
 

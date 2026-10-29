@@ -2,7 +2,7 @@
 
 Visitor and truck management system for Alpine Pipe Manufacturing (APM), Shah Alam. The full spec is in `docs/SPEC.md`. Read it before planning or writing code, and re-read the relevant section before each feature.
 
-## Scope right now: Phase 1 (trucks) only
+## Scope right now: Phase 1 (trucks) and Phase 2 (visitors, contractors)
 
 Build only:
 - Gate in / gate out for trucks, with LPR plate capture and RFID card issue/collect
@@ -12,7 +12,7 @@ Build only:
 - Exit alerts (green / amber / red) and the audit log
 - Inbound coil trucks: gate in → CWIS weigh in/out → gate out (no SDO, no checker)
 
-Do not build visitors, contractors, kiosk, muster list, scorecards or multi-site screens yet. Keep a `site_id` on every record so other sites can be added later.
+Phase 2 (approved by the owner, see `docs/decisions.md` V1–V10): visitors and contractors (invites with QR, walk-in registration on the entry tablet, group visits with one card, gate out), live headcount and muster list, and a "Staff" button that only logs the plate. Contractor document checks, safety video, staff flow, scorecards and multi-site screens are not built yet. Keep a `site_id` on every record so other sites can be added later.
 
 ## Hard rules
 

@@ -20,7 +20,9 @@ import {
   PackageOpen,
   RotateCcw,
   SkipForward,
+  BadgeCheck,
   Truck,
+  UserRound,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -33,10 +35,13 @@ import {
   type PreReg,
 } from '../api';
 import { BigButton } from '../components/BigButton';
+import { PAGE, Pager } from '../components/Pager';
+import { TwoPane } from '../components/TwoPane';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { PlateCard } from '../components/PlateCard';
 import { PlateKeyboard } from '../components/PlateKeyboard';
 import { OkBanner, StatusBanner } from '../components/StatusBanner';
+import { VisitorIn } from './VisitorIn';
 import { useAlarm } from '../hooks/useAlarm';
 import { useCardReader } from '../hooks/useCardReader';
 import { useLiveEvents } from '../hooks/useLiveEvents';
@@ -61,7 +66,16 @@ interface Draft {
   type: TripType | null;
 }
 
-type Stage = 'waiting' | 'pick' | 'keyboard' | 'plate' | 'transporter' | 'photos' | 'done';
+type Stage =
+  | 'waiting'
+  | 'pick'
+  | 'keyboard'
+  | 'plate'
+  | 'transporter'
+  | 'photos'
+  | 'done'
+  | 'visitor'
+  | 'staff';
 
 /** Card problems: the guard just uses another card. Not a supervisor matter. */
 const CARD_ERRORS: Record<string, string> = {
@@ -208,6 +222,25 @@ export function GateIn({ mock }: { mock: boolean }) {
     reset();
   };
 
+  /** Staff car: log the plate only (decision V9). */
+  const logStaff = async () => {
+    if (!draft || busy) return;
+    setBusy(true);
+    try {
+      await api.post('/api/gate/staff', {
+        camera: 'entry',
+        plate: draft.plate,
+        plateReadId: draft.plateReadId,
+      });
+      if (draft.plateReadId) ignoredReads.current.add(draft.plateReadId);
+      setStage('staff');
+    } catch {
+      setError('Not saved');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onPhoto = (kind: PhotoKind, blob: Blob) => {
     setPhotos((c) => ({ ...c, [kind]: c[kind] + 1 }));
     uploads.current.push(
@@ -252,8 +285,8 @@ export function GateIn({ mock }: { mock: boolean }) {
 
   // Done screen resets itself.
   useEffect(() => {
-    if (stage !== 'done') return;
-    const id = setTimeout(reset, DONE_SECONDS * 1000);
+    if (stage !== 'done' && stage !== 'staff') return;
+    const id = setTimeout(reset, (stage === 'staff' ? 2 : DONE_SECONDS) * 1000);
     return () => clearTimeout(id);
   }, [stage, reset]);
 
@@ -274,6 +307,12 @@ export function GateIn({ mock }: { mock: boolean }) {
           <div className="flex h-full flex-col gap-3">
             <BigButton
               className="flex-1"
+              icon={UserRound}
+              label="Visitor"
+              onClick={() => setStage('visitor')}
+            />
+            <BigButton
+              className="flex-1"
               tone="plain"
               icon={ClipboardList}
               label={`Pre-registered (${preRegs.length})`}
@@ -288,6 +327,19 @@ export function GateIn({ mock }: { mock: boolean }) {
             />
           </div>
         }
+      />
+    );
+  }
+
+  if (stage === 'visitor') {
+    return (
+      <VisitorIn
+        car={draft ? { plate: draft.plate, plateReadId: draft.plateReadId } : null}
+        mock={mock}
+        onExit={() => {
+          if (draft?.plateReadId) ignoredReads.current.add(draft.plateReadId);
+          reset();
+        }}
       />
     );
   }
@@ -347,6 +399,25 @@ export function GateIn({ mock }: { mock: boolean }) {
               label="Deliver"
               onClick={() => choosePurpose('inbound')}
             />
+            <div className="flex gap-3">
+              <BigButton
+                className="flex-1"
+                size="md"
+                tone="plain"
+                icon={UserRound}
+                label="Visitor"
+                onClick={() => setStage('visitor')}
+              />
+              <BigButton
+                className="flex-1"
+                size="md"
+                tone="plain"
+                icon={BadgeCheck}
+                label="Staff"
+                disabled={busy}
+                onClick={() => void logStaff()}
+              />
+            </div>
             <div className="flex gap-3">
               {!draft.preReg && preRegs.length > 0 && (
                 <BigButton
@@ -470,6 +541,21 @@ export function GateIn({ mock }: { mock: boolean }) {
     );
   }
 
+  if (stage === 'staff') {
+    return (
+      <button
+        type="button"
+        onClick={reset}
+        data-testid="staff-done"
+        className="flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl bg-ok text-white"
+      >
+        <BadgeCheck className="size-24" />
+        <div className="text-6xl font-black">STAFF</div>
+        <div className="font-mono text-5xl font-black">{formatPlate(draft.plate)}</div>
+      </button>
+    );
+  }
+
   // Done
   if (!result) return null;
   const shown = result.alerts.filter((a) => a.level !== 'logged');
@@ -496,16 +582,6 @@ export function GateIn({ mock }: { mock: boolean }) {
   );
 }
 
-/** Two columns on a landscape tablet, stacked on a portrait phone. */
-function TwoPane({ left, right }: { left: ReactNode; right: ReactNode }) {
-  return (
-    <div className="grid h-full min-h-0 gap-3 landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] portrait:grid-cols-[minmax(0,1fr)] portrait:grid-rows-[minmax(0,1fr)_auto]">
-      <div className="min-h-0 min-w-0">{left}</div>
-      <div className="min-h-0 min-w-0">{right}</div>
-    </div>
-  );
-}
-
 function PreRegChip({ preReg }: { preReg: PreReg | null }) {
   if (!preReg) return <OkBanner text="New truck" />;
   return (
@@ -517,43 +593,6 @@ function PreRegChip({ preReg }: { preReg: PreReg | null }) {
         {preReg.late ? 'Pre-advised · Late' : 'Pre-advised'}
       </div>
       <div className="text-xl font-semibold">SDO {preReg.sdoNos.join(', ')}</div>
-    </div>
-  );
-}
-
-const PAGE = 6;
-
-function Pager({
-  page,
-  pages,
-  setPage,
-}: {
-  page: number;
-  pages: number;
-  setPage: (p: number) => void;
-}) {
-  if (pages <= 1) return null;
-  return (
-    <div className="flex items-center gap-3">
-      <BigButton
-        size="sm"
-        tone="plain"
-        icon={ChevronLeft}
-        label="Back"
-        disabled={page === 0}
-        onClick={() => setPage(page - 1)}
-      />
-      <div className="text-xl font-bold">
-        {page + 1} / {pages}
-      </div>
-      <BigButton
-        size="sm"
-        tone="plain"
-        icon={ChevronRight}
-        label="More"
-        disabled={page >= pages - 1}
-        onClick={() => setPage(page + 1)}
-      />
     </div>
   );
 }

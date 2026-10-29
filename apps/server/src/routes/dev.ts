@@ -17,6 +17,7 @@ import { cards, trips, weighTickets } from '../db/schema.js';
 import { pollCwisTickets, sendCwisPushes } from '../services/cwis.js';
 import { discoverDos } from '../services/dos.js';
 import { buildDemoDay } from '../demo/scenario.js';
+import { AUTOPLAY_SPEEDS, type AutoPlaySpeed } from '../demo/autoplay.js';
 import { conflict, notFound } from '../services/errors.js';
 
 export interface DevContext extends AppContext {
@@ -32,6 +33,7 @@ export const devRoutes: FastifyPluginAsync<{ ctx: DevContext }> = async (app, { 
     mock: true,
     samplePlates: SAMPLE_PLATES,
     autoplay: ctx.autoplay?.running ?? false,
+    autoplaySpeed: ctx.autoplay?.speed ?? 1,
   }));
 
   /** Demo controls (supervisor): rebuild the busy sample day; auto-play on or off. */
@@ -46,19 +48,27 @@ export const devRoutes: FastifyPluginAsync<{ ctx: DevContext }> = async (app, { 
     return { ok: true };
   });
 
-  app.post<{ Body: { on: boolean } }>(
+  app.post<{ Body: { on: boolean; speed?: AutoPlaySpeed } }>(
     '/api/dev/demo/autoplay',
     {
       ...demoAdmin,
       schema: {
-        body: { type: 'object', required: ['on'], properties: { on: { type: 'boolean' } } },
+        body: {
+          type: 'object',
+          required: ['on'],
+          properties: {
+            on: { type: 'boolean' },
+            speed: { type: 'integer', enum: [...AUTOPLAY_SPEEDS] },
+          },
+        },
       },
     },
     async (req) => {
       if (!ctx.autoplay) throw conflict('NO_AUTOPLAY');
+      if (req.body.speed) ctx.autoplay.setSpeed(req.body.speed);
       if (req.body.on) ctx.autoplay.start();
       else ctx.autoplay.stop();
-      return { autoplay: ctx.autoplay.running };
+      return { autoplay: ctx.autoplay.running, speed: ctx.autoplay.speed };
     },
   );
 

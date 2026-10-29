@@ -4,6 +4,8 @@ import { EventEmitter } from 'node:events';
 export type LiveEvent =
   | { type: 'plate_read'; camera: 'entry' | 'exit'; plateReadId: string }
   | { type: 'trip_changed'; tripId: string }
+  | { type: 'visit_changed'; visitId: string }
+  | { type: 'muster_changed'; musterId: string }
   | { type: 'alert'; alertId: string; level: 'amber' | 'red' | 'logged' };
 
 export class EventBus {

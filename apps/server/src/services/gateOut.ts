@@ -150,6 +150,7 @@ export async function exitState(deps: ServiceDeps, site: Site): Promise<ExitStat
         eq(plateReads.siteId, site.id),
         eq(plateReads.camera, 'exit'),
         isNull(plateReads.tripId),
+        isNull(plateReads.handledAt),
         gte(plateReads.readAt, fresh),
       ),
     )
@@ -186,6 +187,8 @@ export async function exitTruckByCard(deps: ServiceDeps, site: Site, rawCardNo: 
     .from(cards)
     .where(and(eq(cards.siteId, site.id), eq(cards.cardNo, normalizeCardNo(rawCardNo))));
   if (!card) throw notFound('CARD_UNKNOWN');
+  // A visitor group's card: the exit screen switches to the people flow.
+  if (card.status === 'issued' && card.currentVisitId) throw conflict('CARD_ON_VISIT');
   if (card.status !== 'issued' || !card.currentTripId) throw conflict('CARD_NOT_ON_TRIP');
   return exitTruckById(deps, site, card.currentTripId);
 }
@@ -262,6 +265,7 @@ export async function gateOut(deps: ServiceDeps, site: Site, userId: string, inp
                 eq(plateReads.siteId, site.id),
                 eq(plateReads.id, input.plateReadId),
                 isNull(plateReads.tripId),
+                isNull(plateReads.handledAt),
               ),
             )
         )[0]

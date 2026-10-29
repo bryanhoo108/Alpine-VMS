@@ -12,7 +12,16 @@ import { loadConfig } from '../config.js';
 import { syncTransporters } from '../services/businessPartners.js';
 import { addDays, siteDate } from '../time.js';
 import { connect, runMigrations, type Db } from './client.js';
-import { cards, preRegistrations, sites, transporters, users, watchlist } from './schema.js';
+import {
+  cards,
+  hosts,
+  invites,
+  preRegistrations,
+  sites,
+  transporters,
+  users,
+  watchlist,
+} from './schema.js';
 
 export const CARD_POOL_SIZE = 60;
 
@@ -148,7 +157,54 @@ export async function seedSampleData(
       addedBy: supervisor.id,
     });
   }
+
+  // Hosts and invites (fictional people). Fixed codes so a demo can type them.
+  const [hostCount] = await db.select({ n: count() }).from(hosts).where(eq(hosts.siteId, site.id));
+  if (hostCount?.n === 0) {
+    const [sales, plant] = await db
+      .insert(hosts)
+      .values([
+        { siteId: site.id, name: 'Sales Manager', department: 'Sales', phone: 'Ext 201' },
+        { siteId: site.id, name: 'Plant Engineer', department: 'Maintenance', phone: 'Ext 305' },
+        { siteId: site.id, name: 'HR Executive', department: 'HR', phone: 'Ext 110' },
+      ])
+      .returning();
+    await db.insert(invites).values([
+      {
+        siteId: site.id,
+        code: SAMPLE_INVITE_CODES.visitor,
+        type: 'visitor' as const,
+        name: 'Sample Visitor',
+        company: 'Customer Alpha Sdn Bhd',
+        groupSize: 2,
+        hostId: sales!.id,
+        purpose: 'Sample: product meeting',
+        validFrom: today,
+        validTo: today,
+        untilTime: '17:00',
+        createdBy: clerk.id,
+      },
+      {
+        siteId: site.id,
+        code: SAMPLE_INVITE_CODES.contractor,
+        type: 'contractor' as const,
+        name: 'Sample Contractor Lead',
+        company: 'Contractor Beta Engineering',
+        groupSize: 4,
+        hostId: plant!.id,
+        purpose: 'Sample: crane servicing, three days',
+        validFrom: today,
+        validTo: addDays(today, 2),
+        untilTime: '18:00',
+        plate: normalizePlate('VAN 4402'),
+        createdBy: clerk.id,
+      },
+    ]);
+  }
 }
+
+/** Invite codes of the sample invites (read-aloud alphabet, see parseInviteCode). */
+export const SAMPLE_INVITE_CODES = { visitor: 'DEMV2345', contractor: 'DEMC6789' } as const;
 
 // Run from the command line: pnpm db:seed
 if (import.meta.url === `file://${process.argv[1]}`) {

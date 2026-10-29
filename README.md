@@ -2,7 +2,7 @@
 
 Visitor and truck management system for Alpine Pipe Manufacturing. Spec: [`docs/SPEC.md`](docs/SPEC.md). Build rules: [`CLAUDE.md`](CLAUDE.md). Decisions and open questions: [`docs/decisions.md`](docs/decisions.md).
 
-Phase 1 covers trucks only. CWIS, SAP and LPR are mocked behind adapters.
+Phase 1 covers trucks; Phase 2 adds visitors and contractors (invites with QR, walk-ins, group visits, headcount and muster) and a Staff plate log. CWIS, SAP and LPR are mocked behind adapters.
 
 **Install on site:** [`docs/INSTALL.md`](docs/INSTALL.md) (Docker or native, Linux or Windows Server, HTTPS for tablets, users and cards, backups).
 
@@ -37,7 +37,7 @@ Free plan: the app sleeps after 15 minutes without visitors, so open the link a 
 
 ## Showing a demo
 
-With `DEMO_DAY=on` (mock adapters only) each start wipes the day's activity and builds a busy day through the real services: 6 trucks already left (3 green, 2 amber, 1 red) and 9 inside, each in a different situation (waiting check, ready to go, SDO amended, plate differs at the weighbridge, load rejected, two trucks on one SDO, watchlisted plate, coil truck waiting to weigh out). The pre-registered trucks WXY 1234, BPN 2045 and BMK 7710 are kept free for you to bring in live.
+With `DEMO_DAY=on` (mock adapters only) each start wipes the day's activity and builds a busy day through the real services: 6 trucks already left (3 green, 2 amber, 1 red) and 9 inside, each in a different situation (waiting check, ready to go, SDO amended, plate differs at the weighbridge, load rejected, two trucks on one SDO, watchlisted plate, coil truck waiting to weigh out). It also has visitor and contractor groups: 3 inside (a roof repair crew of 5, an audit team of 3, a walk-in whose host did not answer) and 2 that left (one green, one amber "Stayed late"). The pre-registered trucks WXY 1234, BPN 2045 and BMK 7710, and the invites **DEMV 2345** (visitor) and **DEMC 6789** (contractor crew of 4), are kept free for you to bring in live.
 
 A suggested 10-minute walk-through:
 
@@ -46,8 +46,9 @@ A suggested 10-minute walk-through:
 3. **Office** (clerk): match a walk-in, link a DO, clear an alert. **Left today** shows trucks that left, read-only, with their timelines.
 4. **Check**: approve BQA 7701 (its SDO was amended, so the line shows "SDO changed").
 5. **Out**: let BMK 7711 out green; let WRC 6650 out red and hear the alarm.
+6. **Visitors**: Office → **Visitors**: create an invite and show **Share on WhatsApp** / **Copy QR**. On **In**, tap **Visitor**, pick "Sample Contractor Lead" (or **Scan QR** → **Test QR**), set how many came, Photo, card. On **Out**, **People** → the group → card. On **Live**, the headcount changes; tap **Muster** for the roll call.
 
-On **Live**, **Auto-play** moves its own trucks (plates starting with JQ) one step every 20 seconds so the screens change by themselves while you talk; **Restart day** rebuilds the sample day. `DEMO_AUTOPLAY=on` starts auto-play at boot. Only the supervisor sees these controls.
+On **Live**, **Auto-play** moves its own trucks (plates starting with JQ) one step every 20 seconds so the screens change by themselves while you talk; **1× / 4× / 10×** fast-forwards it (10× is a step every 2 seconds); **Restart day** rebuilds the sample day. `DEMO_AUTOPLAY=on` starts auto-play at boot. Only the supervisor sees these controls.
 
 ## Develop
 
@@ -97,6 +98,15 @@ To see **SDO changed** in mock mode, amend an SDO line after the truck is matche
 Sign in as **Exit Guard** and tap **Out** in the title bar (each tablet remembers In or Out). The purple **Test** button makes the exit camera see a plate. The screen shows **Go** (green), **Check** (amber) or **Call supervisor** (red, with alarm) and the reasons. The driver's card tap lets the truck out (**Test card** in mock mode); **No card** then **Yes, no card** marks the card lost. A misread plate shows **Not inside** with **Pick truck**. A card tapped with no camera read finds its truck and lets it out.
 
 Daily reconciliation (exits with no DO, DOs with no exit): `GET /api/reports/reconcile?date=YYYY-MM-DD` (clerk or supervisor).
+
+### Trying visitors and contractors
+
+- **Office → Visitors** (clerk or supervisor): create an invite (visitor or contractor, how many people, host, dates, end time, car plate). Each invite has a QR and an 8-letter code to read out; **Share on WhatsApp** opens your own WhatsApp with the message (on a phone, with the QR image), **Copy QR** copies the image, **Save QR** saves it. Hosts (Alpine staff that visitors come to see) are added here too.
+- **In** (entry guard): **Visitor** → pick the name from today's list, or **Scan QR**, or **Walk-in** (the visitor types name, company, phone and how many on the tablet, picks the host; the guard phones the host and taps **Host OK** or **No answer**). Then the IC photo and one card for the whole group. After a camera read, **Visitor** keeps the car plate with the visit and **Staff** just logs the plate.
+- **Out** (exit guard): the group's card tap lets them out. **People** lists groups inside. When the exit camera reads a car that is not a truck: **Visitor** (opens the group with that plate) or **Staff**.
+- **Live**: people on site (drivers, visitors, contractors) and **Muster**: the roll call is fixed when it starts; tick each group when seen.
+
+Colours: no card back is red; leaving more than 30 minutes after the invite's end time is amber "Stayed late"; a walk-in whose host did not answer is amber "No host OK" at the gate. Nobody is stopped.
 
 ### DOs (mock mode)
 
