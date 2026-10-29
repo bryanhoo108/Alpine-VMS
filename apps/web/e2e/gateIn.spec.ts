@@ -53,6 +53,8 @@ test('watchlist plate shows red and still lets the guard continue', async ({ pag
 
 test('camera misread: guard picks from the pre-registered list', async ({ page }) => {
   await cameraSees(page, 'BPN 2O45');
+  // Wait for the plate screen, so the tap does not land as the screen changes.
+  await expect(page.getByTestId('plate-text')).toHaveText('BPN 2 O 45');
   await expect(page.getByTestId('prereg-chip')).toHaveCount(0);
   await page.getByRole('button', { name: 'Pre-registered' }).click();
   await expectGuardLayout(page);

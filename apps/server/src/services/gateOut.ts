@@ -150,6 +150,7 @@ export async function exitState(deps: ServiceDeps, site: Site): Promise<ExitStat
         eq(plateReads.siteId, site.id),
         eq(plateReads.camera, 'exit'),
         isNull(plateReads.tripId),
+        isNull(plateReads.handledAt),
         gte(plateReads.readAt, fresh),
       ),
     )
@@ -262,6 +263,7 @@ export async function gateOut(deps: ServiceDeps, site: Site, userId: string, inp
                 eq(plateReads.siteId, site.id),
                 eq(plateReads.id, input.plateReadId),
                 isNull(plateReads.tripId),
+                isNull(plateReads.handledAt),
               ),
             )
         )[0]

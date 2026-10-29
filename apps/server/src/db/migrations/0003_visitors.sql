@@ -89,6 +89,7 @@ CREATE TABLE "visits" (
 ALTER TABLE "alerts" ADD COLUMN "visit_id" uuid;--> statement-breakpoint
 ALTER TABLE "cards" ADD COLUMN "current_visit_id" uuid;--> statement-breakpoint
 ALTER TABLE "photos" ADD COLUMN "visit_id" uuid;--> statement-breakpoint
+ALTER TABLE "plate_reads" ADD COLUMN "handled_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "hosts" ADD CONSTRAINT "hosts_site_id_sites_id_fk" FOREIGN KEY ("site_id") REFERENCES "public"."sites"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invites" ADD CONSTRAINT "invites_site_id_sites_id_fk" FOREIGN KEY ("site_id") REFERENCES "public"."sites"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invites" ADD CONSTRAINT "invites_host_id_hosts_id_fk" FOREIGN KEY ("host_id") REFERENCES "public"."hosts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

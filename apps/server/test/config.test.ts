@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
-import { addDays, siteDate } from '../src/time.js';
+import { addDays, siteDate, siteDateTime } from '../src/time.js';
 
 describe('loadConfig', () => {
   const SECRET = 'x'.repeat(32);
@@ -54,5 +54,19 @@ describe('site time', () => {
   it('adds days across month ends', () => {
     expect(addDays('2026-10-31', 1)).toBe('2026-11-01');
     expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('turns a site-local date and time into the moment it happens', () => {
+    // 17:00 in Shah Alam (UTC+8) is 09:00 UTC.
+    expect(siteDateTime('2026-11-02', '17:00', 'Asia/Kuala_Lumpur').toISOString()).toBe(
+      '2026-11-02T09:00:00.000Z',
+    );
+    // Daylight saving zone: 09:00 in London in July is 08:00 UTC, in January 09:00 UTC.
+    expect(siteDateTime('2026-07-01', '09:00', 'Europe/London').toISOString()).toBe(
+      '2026-07-01T08:00:00.000Z',
+    );
+    expect(siteDateTime('2026-01-15', '09:00', 'Europe/London').toISOString()).toBe(
+      '2026-01-15T09:00:00.000Z',
+    );
   });
 });

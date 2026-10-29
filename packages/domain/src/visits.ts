@@ -64,13 +64,15 @@ export function parseInviteCode(text: string): string | null {
 export interface VisitGateInInput {
   /** Walk-ins: the guard phoned the host and tapped "Host OK". Invites count as confirmed. */
   hostConfirmed: boolean;
-  /** Plate of the car they came in, if any, is on the watchlist. */
-  plateOnWatchlist: boolean;
+  /** Reason, when the plate of the car they came in is on the watchlist. */
+  watchlistReason: string | null;
 }
 
 export function visitGateInAlerts(input: VisitGateInInput): RaisedAlert[] {
   const out: RaisedAlert[] = [];
-  if (input.plateOnWatchlist) out.push(raise('WATCHLIST_HIT'));
+  if (input.watchlistReason !== null) {
+    out.push(raise('WATCHLIST_HIT', { kind: 'plate', reason: input.watchlistReason }));
+  }
   if (!input.hostConfirmed) out.push(raise('HOST_NOT_CONFIRMED'));
   return out;
 }

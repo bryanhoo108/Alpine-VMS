@@ -13,6 +13,7 @@ import {
   type NewHost,
   type NewInvite,
 } from '../services/invites.js';
+import { logStaff, visitGateIn, type VisitGateInInput } from '../services/visits.js';
 
 const uuid = { type: 'string', format: 'uuid' } as const;
 const idParams = { type: 'object', required: ['id'], properties: { id: uuid } } as const;
@@ -143,5 +144,72 @@ export const visitorRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) =>
       },
     },
     (req) => findInvite(ctx, ctx.site, req.query.code),
+  );
+
+  // --- Gate: visitor / contractor in, staff plate log ---
+  app.post<{ Body: VisitGateInInput }>(
+    '/api/gate/visit-in',
+    {
+      ...gate,
+      schema: {
+        body: {
+          type: 'object',
+          required: [
+            'inviteId',
+            'type',
+            'name',
+            'company',
+            'phone',
+            'hostId',
+            'groupSize',
+            'hostConfirmed',
+            'plate',
+            'plateReadId',
+            'cardNo',
+            'photoIds',
+          ],
+          additionalProperties: false,
+          properties: {
+            inviteId: { type: ['string', 'null'], format: 'uuid' },
+            type: { type: 'string', enum: ['visitor', 'contractor'] },
+            name: { type: 'string', maxLength: 80 },
+            company: optionalText(80),
+            phone: optionalText(30),
+            hostId: { type: ['string', 'null'], format: 'uuid' },
+            groupSize: { type: 'integer', minimum: 1, maximum: 60 },
+            hostConfirmed: { type: 'boolean' },
+            plate: optionalText(16),
+            plateReadId: { type: ['string', 'null'], format: 'uuid' },
+            cardNo: { type: 'string', minLength: 1, maxLength: 64 },
+            photoIds: { type: 'array', maxItems: 10, items: uuid },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const result = await visitGateIn(ctx, ctx.site, currentUser(req).id, req.body);
+      if (!result.ok) return reply.code(409).send({ error: result.error });
+      return result;
+    },
+  );
+
+  app.post<{ Body: { camera: 'entry' | 'exit'; plate: string; plateReadId: string | null } }>(
+    '/api/gate/staff',
+    {
+      ...gate,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['camera', 'plate', 'plateReadId'],
+          additionalProperties: false,
+          properties: {
+            camera: { type: 'string', enum: ['entry', 'exit'] },
+            plate: { type: 'string', minLength: 1, maxLength: 16 },
+            plateReadId: { type: ['string', 'null'], format: 'uuid' },
+          },
+        },
+      },
+    },
+    (req) => logStaff(ctx, ctx.site, currentUser(req).id, req.body),
   );
 };

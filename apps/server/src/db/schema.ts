@@ -206,6 +206,8 @@ export const plateReads = pgTable(
     tripId: uuid('trip_id').references(() => trips.id),
     confirmedPlate: text('confirmed_plate'),
     corrected: boolean('corrected').notNull().default(false),
+    /** Used by a visit or the "Staff" button (trucks set trip_id instead). */
+    handledAt: ts('handled_at'),
   },
   (t) => [index('plate_reads_site_read_at').on(t.siteId, t.readAt)],
 );

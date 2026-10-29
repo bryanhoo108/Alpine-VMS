@@ -401,3 +401,17 @@ export interface Invite {
   insideVisitId: string | null;
   lastArrivalAt: string | null;
 }
+
+export interface VisitInResponse {
+  visit: {
+    id: string;
+    visitNo: string;
+    type: VisitType;
+    name: string;
+    company: string | null;
+    groupSize: number;
+    host: string | null;
+  };
+  cardNo: string;
+  alerts: Alert[];
+}

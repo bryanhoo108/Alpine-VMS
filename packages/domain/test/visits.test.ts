@@ -60,11 +60,11 @@ describe('invite code', () => {
 
 describe('visit gate in', () => {
   it('raises nothing for an invited visitor arriving on foot', () => {
-    expect(visitGateInAlerts({ hostConfirmed: true, plateOnWatchlist: false })).toEqual([]);
+    expect(visitGateInAlerts({ hostConfirmed: true, watchlistReason: null })).toEqual([]);
   });
 
   it('amber when the host could not be reached, red when the car is watchlisted', () => {
-    const alerts = visitGateInAlerts({ hostConfirmed: false, plateOnWatchlist: true });
+    const alerts = visitGateInAlerts({ hostConfirmed: false, watchlistReason: 'Banned' });
     expect(alerts.map((a) => [a.type, a.level])).toEqual([
       ['WATCHLIST_HIT', 'red'],
       ['HOST_NOT_CONFIRMED', 'amber'],
