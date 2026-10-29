@@ -4,6 +4,7 @@ import { buildApp } from './app.js';
 import { demoClock } from './demo/clock.js';
 import { loadConfig } from './config.js';
 import { connect, runMigrations } from './db/client.js';
+import { TesseractIcReader } from './ocr.js';
 
 const config = loadConfig();
 const adapterConfig = adapterConfigFromEnv(process.env);
@@ -23,6 +24,7 @@ const app = await buildApp(
     demo: { day: process.env.DEMO_DAY === 'on', autoplay: process.env.DEMO_AUTOPLAY === 'on' },
     adapterConfig,
     jobs: true,
+    icReader: new TesseractIcReader({ warm: true }),
   },
   {
     logger: true,

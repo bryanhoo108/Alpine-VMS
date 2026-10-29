@@ -27,6 +27,7 @@ export function PhotoCapture({ label, icon: Icon, badges, onPhoto, cardGuide = f
   const fileInput = useRef<HTMLInputElement>(null);
   const [live, setLive] = useState<'starting' | 'on' | 'off'>('starting');
   const [flash, setFlash] = useState(false);
+  const guide = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -36,7 +37,11 @@ export function PhotoCapture({ label, icon: Icon, badges, onPhoto, cardGuide = f
       return;
     }
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1600 } }, audio: false })
+      .getUserMedia({
+        // The IC is cropped out of the frame, so ask for more pixels there.
+        video: { facingMode: 'environment', width: { ideal: cardGuide ? 1920 : 1600 } },
+        audio: false,
+      })
       .then((s) => {
         if (stopped) return s.getTracks().forEach((t) => t.stop());
         stream = s;
@@ -51,18 +56,21 @@ export function PhotoCapture({ label, icon: Icon, badges, onPhoto, cardGuide = f
       stopped = true;
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [cardGuide]);
 
   const shoot = () => {
     if (live === 'starting') return;
     if (live === 'off') return fileInput.current?.click();
     const v = video.current;
     if (!v || v.videoWidth === 0) return;
+    const area = cardGuide && guide.current ? guideArea(v, guide.current) : fullFrame(v);
     const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth;
-    canvas.height = v.videoHeight;
-    canvas.getContext('2d')?.drawImage(v, 0, 0);
-    canvas.toBlob((blob) => blob && onPhoto(blob), 'image/jpeg', 0.85);
+    canvas.width = area.outW;
+    canvas.height = area.outH;
+    canvas
+      .getContext('2d')
+      ?.drawImage(v, area.x, area.y, area.w, area.h, 0, 0, area.outW, area.outH);
+    canvas.toBlob((blob) => blob && onPhoto(blob), 'image/jpeg', 0.9);
     setFlash(true);
     setTimeout(() => setFlash(false), 150);
   };
@@ -84,6 +92,7 @@ export function PhotoCapture({ label, icon: Icon, badges, onPhoto, cardGuide = f
         {cardGuide && live === 'on' && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
             <div
+              ref={guide}
               data-testid="card-guide"
               className="aspect-[85.6/54] max-h-[75%] w-4/5 max-w-full rounded-2xl border-4 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]"
             />
@@ -135,4 +144,44 @@ export function PhotoCapture({ label, icon: Icon, badges, onPhoto, cardGuide = f
       />
     </div>
   );
+}
+
+interface Area {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  outW: number;
+  outH: number;
+}
+
+/** Widest photo sent for an IC: enough to read, small enough for a slow server. */
+const MAX_IC_WIDTH = 1280;
+
+function fullFrame(v: HTMLVideoElement): Area {
+  return { x: 0, y: 0, w: v.videoWidth, h: v.videoHeight, outW: v.videoWidth, outH: v.videoHeight };
+}
+
+/**
+ * The part of the camera frame inside the card outline, plus a small margin.
+ * The video is shown with object-cover, so screen points are mapped back to
+ * frame pixels. Cropping makes the card fill the photo: easier and much
+ * quicker to read on the server.
+ */
+function guideArea(v: HTMLVideoElement, box: HTMLElement): Area {
+  const vr = v.getBoundingClientRect();
+  const br = box.getBoundingClientRect();
+  if (vr.width === 0 || br.width === 0) return fullFrame(v);
+  const scale = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
+  const ox = (vr.width - v.videoWidth * scale) / 2;
+  const oy = (vr.height - v.videoHeight * scale) / 2;
+  const margin = 0.08;
+  const left = br.left - vr.left - br.width * margin;
+  const top = br.top - vr.top - br.height * margin;
+  const x = Math.max(0, (left - ox) / scale);
+  const y = Math.max(0, (top - oy) / scale);
+  const w = Math.min(v.videoWidth - x, (br.width * (1 + 2 * margin)) / scale);
+  const h = Math.min(v.videoHeight - y, (br.height * (1 + 2 * margin)) / scale);
+  const shrink = Math.min(1, MAX_IC_WIDTH / w);
+  return { x, y, w, h, outW: Math.round(w * shrink), outH: Math.round(h * shrink) };
 }

@@ -46,6 +46,12 @@ describe('reading a MyKad', () => {
     expect(readMyKad(`750430-08-1189\n1\n|\nTEST AIL RAMAN\n12 JALAN`).name).toBe('TEST A/L RAMAN');
   });
 
+  it('drops a one- or two-letter bit of card pattern at the end of a line', () => {
+    expect(readMyKad(`900101-14-5678\nSAMPLE DRIVER\nBIN DEMO LS\n12 JALAN`).name).toBe(
+      'SAMPLE DRIVER BIN DEMO',
+    );
+  });
+
   it('keeps short name words in capitals (AH, NG) and @', () => {
     expect(readMyKad(`690923-05-3016\nNG AH KOW @ SAMPLE\n3 JALAN`).name).toBe(
       'NG AH KOW @ SAMPLE',
