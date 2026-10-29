@@ -2,7 +2,7 @@ import { eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DemoContext } from '../src/demo/actions.js';
 import { AUTOPLAY_PREFIX, AutoPlay } from '../src/demo/autoplay.js';
-import { trips } from '../src/db/schema.js';
+import { trips, visits } from '../src/db/schema.js';
 import { FileStore } from '../src/files.js';
 import { createTestApp, type TestApp } from './helpers/testApp.js';
 
@@ -95,6 +95,33 @@ describe('demo day', () => {
     const minutesAgo = (Date.now() - new Date(t.events[0].at).getTime()) / 60_000;
     expect(minutesAgo).toBeGreaterThan(300);
     expect(t.events.find((e: { kind: string }) => e.kind === 'check').actor).toBe('Checker 1');
+  });
+
+  it('has visitor and contractor groups: 3 inside (9 people), 2 that left', async () => {
+    const people = await get('/api/people');
+    expect(people.headcount).toEqual({
+      total: 18,
+      truckDrivers: 9,
+      visitors: 4,
+      contractors: 5,
+    });
+    const rows = await h.t.db.select().from(visits);
+    const left = rows.filter((v) => v.status === 'closed');
+    expect(left.map((v) => [v.name, v.exitLevel]).sort()).toEqual([
+      ['Pump Service Lead', 'amber'],
+      ['Supplier Delta Rep', 'green'],
+    ]);
+    const walkIn = rows.find((v) => v.name === 'Walk-in Salesman')!;
+    expect(walkIn.hostConfirmed).toBe(false);
+    // The presenter's sample invites are still free.
+    const invites = await get('/api/invites');
+    const free = invites.filter((i: { code: string; insideVisitId: string | null }) =>
+      ['DEMV2345', 'DEMC6789'].includes(i.code),
+    );
+    expect(free.map((i: { insideVisitId: string | null }) => i.insideVisitId)).toEqual([
+      null,
+      null,
+    ]);
   });
 
   it('timeline shows the problems of the red exit', async () => {
