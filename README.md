@@ -24,6 +24,17 @@ Open http://localhost:8080. Sample data and mock SAP / CWIS / cameras are loaded
 | `apps/server`       | Fastify server, PostgreSQL schema and migrations (Drizzle), seed data                                                                                                    |
 | `apps/web`          | Guard, clerk and checker screens _(next steps)_                                                                                                                          |
 
+## Demo link on Render
+
+For showing the system to people without installing anything. Sample data and mock SAP / CWIS / cameras only; the real system runs on Alpine's own server.
+
+1. Sign up at [render.com](https://render.com) with your GitHub account and allow it to see this repository.
+2. In the Render dashboard: **New → Blueprint**, pick **Alpine-VMS**. Render reads `render.yaml`.
+3. When asked, enter **SEED_DEMO_PIN** (4–8 digits, for guards and checkers) and **SEED_DEMO_PASSWORD** (10+ characters, for clerk and supervisor). Click **Apply**.
+4. Wait for the first build (about 5–10 minutes), then open the `…onrender.com` link Render shows.
+
+Free plan: the app sleeps after 15 minutes without visitors, so open the link a minute before a demo. On waking, the mock SAP and CWIS start again with fresh sample data; trucks already entered stay. The free database expires after 30 days; upgrading the app to Starter (about USD 7/month) keeps it always on.
+
 ## Develop
 
 Requires Node 22, pnpm 10 and PostgreSQL 16 (local install, or just the database in Docker: `docker compose up -d db`).
