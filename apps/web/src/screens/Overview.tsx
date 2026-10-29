@@ -8,6 +8,7 @@ import {
   BellRing,
   CheckCircle2,
   Clock,
+  FastForward,
   FlaskConical,
   LogIn,
   LogOut,
@@ -278,18 +279,29 @@ function Sync({ name, waiting, since }: { name: string; waiting: number; since: 
 }
 
 /** Mock mode only: auto-play and restarting the sample day. */
+/** One step every 20 s at 1×; 10× is a step every 2 s. */
+const SPEEDS = [1, 4, 10] as const;
+
 function DemoBar({ onChanged }: { onChanged: () => void }) {
   const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     api
-      .get<{ autoplay?: boolean }>('/api/dev')
-      .then((d) => setPlaying(!!d.autoplay))
+      .get<{ autoplay?: boolean; autoplaySpeed?: number }>('/api/dev')
+      .then((d) => {
+        setPlaying(!!d.autoplay);
+        setSpeed(d.autoplaySpeed ?? 1);
+      })
       .catch(() => undefined);
   }, []);
-  const toggle = async () => {
-    const r = await api.post<{ autoplay: boolean }>('/api/dev/demo/autoplay', { on: !playing });
+  const send = async (on: boolean, newSpeed = speed) => {
+    const r = await api.post<{ autoplay: boolean; speed: number }>('/api/dev/demo/autoplay', {
+      on,
+      speed: newSpeed,
+    });
     setPlaying(r.autoplay);
+    setSpeed(r.speed);
   };
   const restart = async () => {
     if (!window.confirm('Restart the demo day? Trucks entered by hand will be cleared.')) return;
@@ -306,16 +318,36 @@ function DemoBar({ onChanged }: { onChanged: () => void }) {
       <FlaskConical className="size-5" />
       <span className="font-bold">Demo</span>
       <span className="text-sm">sample data, simulated SAP / CWIS / cameras</span>
-      <div className="ml-auto flex gap-2">
+      <div className="ml-auto flex flex-wrap justify-end gap-2">
         <button
           type="button"
-          onClick={() => void toggle()}
+          onClick={() => void send(!playing)}
           aria-pressed={playing}
           className={`flex min-h-11 items-center gap-2 rounded-lg px-4 font-bold ${playing ? 'bg-purple-700 text-white' : 'border-2 border-purple-300 bg-white'}`}
         >
           {playing ? <Square className="size-5" /> : <Play className="size-5" />}
           {playing ? 'Stop auto-play' : 'Auto-play'}
         </button>
+        {/* Fast forward: picking a speed also starts auto-play. */}
+        <div
+          role="group"
+          aria-label="Auto-play speed"
+          className="flex items-center gap-1 rounded-lg border-2 border-purple-300 bg-white px-1"
+        >
+          <FastForward className="mx-1 size-5" aria-hidden />
+          {SPEEDS.map((x) => (
+            <button
+              key={x}
+              type="button"
+              aria-pressed={playing && speed === x}
+              aria-label={`Speed ${x}×`}
+              onClick={() => void send(true, x)}
+              className={`min-h-11 min-w-11 rounded-md px-2 font-bold ${playing && speed === x ? 'bg-purple-700 text-white' : ''}`}
+            >
+              {x}×
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           disabled={busy}

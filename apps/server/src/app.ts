@@ -33,6 +33,8 @@ export interface AppDeps {
   jobs?: boolean;
   /** Demo with mock adapters: build the busy sample day on start; start auto-play. */
   demo?: { day: boolean; autoplay: boolean };
+  /** Browser-test server only: gets the live context (to stop auto-play between tests). */
+  onContext?: (ctx: AppContext) => void;
 }
 
 /** Everything routes and services need, built once at start. */
@@ -127,6 +129,7 @@ export async function buildApp(
     if (deps.demo?.autoplay) ctx.autoplay.start();
     app.addHook('onClose', async () => ctx.autoplay?.stop());
   }
+  deps.onContext?.(ctx);
 
   // Camera reads arrive from the LPR adapter (webhook for real cameras, dev panel for the mock).
   const off = deps.adapters.lpr.onPlateEvent(async (event) => {

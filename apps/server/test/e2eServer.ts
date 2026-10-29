@@ -5,7 +5,7 @@
  */
 import { adapterConfigFromEnv, createAdapters } from '@vms/adapters';
 import { sql } from 'drizzle-orm';
-import { buildApp } from '../src/app.js';
+import { buildApp, type AppContext } from '../src/app.js';
 import { demoClock } from '../src/demo/clock.js';
 import { seed } from '../src/db/seed.js';
 import { EventBus } from '../src/events.js';
@@ -37,6 +37,7 @@ const reseed = async () => {
 };
 await reseed();
 
+let ctx: AppContext | null = null;
 const app = await buildApp({
   config,
   db: t.db,
@@ -44,9 +45,13 @@ const app = await buildApp({
   adapterConfig,
   jobs: true,
   now: demoClock.now,
+  onContext: (c) => (ctx = c),
 });
 
 app.post('/__e2e/reset', async () => {
+  // Auto-play left on by a test must not move trucks in the next one.
+  ctx?.autoplay?.stop();
+  ctx?.autoplay?.setSpeed(1);
   const rows = await t.db.execute<{ tablename: string }>(
     sql`select tablename from pg_tables where schemaname = 'public' and tablename <> 'sites'`,
   );

@@ -182,14 +182,29 @@ describe('auto-play', () => {
       headers: { cookie: supervisor },
       payload: { on: true },
     });
-    expect(on.json()).toEqual({ autoplay: true });
+    expect(on.json()).toEqual({ autoplay: true, speed: 1 });
     expect((await get('/api/dev')).autoplay).toBe(true);
+    const fast = await h.app.inject({
+      method: 'POST',
+      url: '/api/dev/demo/autoplay',
+      headers: { cookie: supervisor },
+      payload: { on: true, speed: 10 },
+    });
+    expect(fast.json()).toEqual({ autoplay: true, speed: 10 });
+    expect((await get('/api/dev')).autoplaySpeed).toBe(10);
+    const bad = await h.app.inject({
+      method: 'POST',
+      url: '/api/dev/demo/autoplay',
+      headers: { cookie: supervisor },
+      payload: { on: true, speed: 50 },
+    });
+    expect(bad.statusCode).toBe(400);
     const off = await h.app.inject({
       method: 'POST',
       url: '/api/dev/demo/autoplay',
       headers: { cookie: supervisor },
       payload: { on: false },
     });
-    expect(off.json()).toEqual({ autoplay: false });
+    expect(off.json()).toEqual({ autoplay: false, speed: 10 });
   });
 });

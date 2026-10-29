@@ -47,7 +47,7 @@ A suggested 10-minute walk-through:
 4. **Check**: approve BQA 7701 (its SDO was amended, so the line shows "SDO changed").
 5. **Out**: let BMK 7711 out green; let WRC 6650 out red and hear the alarm.
 
-On **Live**, **Auto-play** moves its own trucks (plates starting with JQ) one step every 20 seconds so the screens change by themselves while you talk; **Restart day** rebuilds the sample day. `DEMO_AUTOPLAY=on` starts auto-play at boot. Only the supervisor sees these controls.
+On **Live**, **Auto-play** moves its own trucks (plates starting with JQ) one step every 20 seconds so the screens change by themselves while you talk; **1× / 4× / 10×** fast-forwards it (10× is a step every 2 seconds); **Restart day** rebuilds the sample day. `DEMO_AUTOPLAY=on` starts auto-play at boot. Only the supervisor sees these controls.
 
 ## Develop
 

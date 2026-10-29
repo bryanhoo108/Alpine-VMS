@@ -27,12 +27,16 @@ export const AUTOPLAY_PREFIX = 'JQ';
 /** SDOs kept for the presenter's pre-registered trucks. */
 const RESERVED_SDOS = ['5005', '5007', '5009', '5010'];
 const MAX_TRUCKS = 6;
+/** Fast-forward choices on the Live screen: 1× is one step every 20 s. */
+export const AUTOPLAY_SPEEDS = [1, 4, 10] as const;
+export type AutoPlaySpeed = (typeof AUTOPLAY_SPEEDS)[number];
 const COMPANIES = ['T0001', 'T0002', 'T0003', 'T0004'];
 
 export class AutoPlay {
   private timer: NodeJS.Timeout | null = null;
   private busy = false;
   private plateNo = 100 + Math.floor(Math.random() * 800);
+  private _speed: AutoPlaySpeed = 1;
 
   constructor(
     private readonly c: DemoContext,
@@ -45,10 +49,23 @@ export class AutoPlay {
     return this.timer !== null;
   }
 
+  get speed() {
+    return this._speed;
+  }
+
   start() {
     if (this.timer) return;
-    this.timer = setInterval(() => void this.tick(), this.everyMs);
+    this.timer = setInterval(() => void this.tick(), this.everyMs / this._speed);
     void this.tick();
+  }
+
+  /** Change how fast trucks move; takes effect at once if playing. */
+  setSpeed(speed: AutoPlaySpeed) {
+    this._speed = speed;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = setInterval(() => void this.tick(), this.everyMs / speed);
+    }
   }
 
   stop() {
