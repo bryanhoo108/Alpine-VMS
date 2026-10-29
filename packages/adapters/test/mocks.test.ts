@@ -214,6 +214,29 @@ describe('MockCwisAdapter', () => {
     await cwis.pushPendingTruck({ ...base, sdoNos: ['5001'] });
     expect(cwis.pendingTrucks()).toEqual([{ ...base, sdoNos: ['5001'] }]);
   });
+
+  it('gives a reused card the newest truck, and a weigh-in uses the pending truck up', async () => {
+    const cwis = new MockCwisAdapter({ now });
+    const truck = (tripNo: string, plate: string, sdo: string) => ({
+      tripNo,
+      cardNo: 'C1',
+      plate,
+      transporterName: null,
+      driverName: null,
+      sdoNos: [sdo],
+    });
+    await cwis.pushPendingTruck(truck('T1', 'A1', '5012'));
+    expect(cwis.weighIn({ plate: 'A1', cardNo: 'C1' }).sdoNos).toEqual(['5012']);
+    expect(cwis.pendingTrucks()).toEqual([]);
+
+    // T2 never weighed in; T3 got the same card later.
+    await cwis.pushPendingTruck(truck('T2', 'B2', '5001'));
+    await cwis.pushPendingTruck(truck('T3', 'C3', '5008'));
+    expect(cwis.weighIn({ plate: 'C3', cardNo: 'C1' })).toMatchObject({
+      sdoNos: ['5008'],
+      vmsTripNo: 'T3',
+    });
+  });
 });
 
 describe('MockLprAdapter', () => {

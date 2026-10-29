@@ -181,3 +181,25 @@ describe('reading CWIS tickets', () => {
     expect(await ticketsOf(trip.id)).toHaveLength(1);
   });
 });
+
+describe('ticket read overlap', () => {
+  it('does not miss a ticket saved in the same second as the newest one stored', async () => {
+    const a = await gateInTruck(h, guard, {
+      plate: 'BQA9001',
+      cardNo: nextCard(),
+      type: 'inbound',
+    });
+    const b = await gateInTruck(h, guard, {
+      plate: 'BQA9002',
+      cardNo: nextCard(),
+      type: 'inbound',
+    });
+    h.cwis.weighIn({ plate: 'BQA9001' });
+    await pollCwisTickets(h.deps, h.site);
+    // Same clock second as the ticket already stored:
+    h.cwis.weighIn({ plate: 'BQA9002' });
+    await pollCwisTickets(h.deps, h.site);
+    expect(await ticketsOf(a.trip.id)).toHaveLength(1);
+    expect(await ticketsOf(b.trip.id)).toHaveLength(1);
+  });
+});

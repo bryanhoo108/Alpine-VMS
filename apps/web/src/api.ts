@@ -107,6 +107,8 @@ export interface TripSummary {
   plate: string;
   transporterName: string | null;
   gateInAt: string;
+  gateOutAt: string | null;
+  exitLevel: 'green' | 'amber' | 'red' | null;
   preAdvised: boolean;
   sdoNos: string[];
   stage: {
@@ -299,4 +301,70 @@ export interface GateOutResponse {
   trip: { id: string; tripNo: string; plate: string; type: 'outbound' | 'inbound' };
   status: ExitTruck['status'];
   cardReturned: boolean;
+}
+
+// --- Timeline and overview --------------------------------------------------------
+
+export interface TimelineEvent {
+  at: string;
+  kind: string;
+  title: string;
+  detail: string | null;
+  tone: 'ok' | 'warn' | 'bad' | 'info' | 'muted';
+  actor: string | null;
+}
+
+export interface Timeline {
+  id: string;
+  tripNo: string;
+  plate: string;
+  type: 'outbound' | 'inbound';
+  status: 'on_site' | 'closed';
+  transporterName: string | null;
+  gateInAt: string;
+  gateOutAt: string | null;
+  exitLevel: 'green' | 'amber' | 'red' | null;
+  events: TimelineEvent[];
+}
+
+export type Stage =
+  | 'Not matched'
+  | 'Waiting weigh-in'
+  | 'Rejected'
+  | 'Waiting check'
+  | 'Waiting DO'
+  | 'Waiting weigh-out'
+  | 'Ready to go';
+
+export interface Overview {
+  at: string;
+  date: string;
+  today: {
+    in: number;
+    out: number;
+    inside: number;
+    avgMinutesInside: number | null;
+    exits: { green: number; amber: number; red: number };
+  };
+  stages: Record<Stage, number>;
+  inside: {
+    id: string;
+    tripNo: string;
+    plate: string;
+    type: 'outbound' | 'inbound';
+    transporterName: string | null;
+    sdoNos: string[];
+    minutesInside: number;
+    stage: Stage;
+    level: 'green' | 'amber' | 'red';
+    reasons: string[];
+    openAlert: 'red' | 'amber' | null;
+  }[];
+  openAlerts: OfficeAlert[];
+  integrations: {
+    sapWaiting: number;
+    sapOldestWaitingAt: string | null;
+    cwisWaiting: number;
+    cwisOldestWaitingAt: string | null;
+  };
 }

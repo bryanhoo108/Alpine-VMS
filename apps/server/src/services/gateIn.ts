@@ -256,7 +256,14 @@ export async function gateIn(
           await tx
             .select()
             .from(plateReads)
-            .where(and(eq(plateReads.siteId, site.id), eq(plateReads.id, input.plateReadId)))
+            // A read already used by another truck is ignored, never attached twice.
+            .where(
+              and(
+                eq(plateReads.siteId, site.id),
+                eq(plateReads.id, input.plateReadId),
+                isNull(plateReads.tripId),
+              ),
+            )
         )[0]
       : undefined;
 

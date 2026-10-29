@@ -44,6 +44,8 @@ export class MockCwisAdapter implements CwisAdapter {
 
   async pushPendingTruck(truck: PendingTruck): Promise<void> {
     this.reach();
+    // Re-insert so the newest push is last (cards are reused between trucks).
+    this.pending.delete(truck.tripNo);
     this.pending.set(truck.tripNo, structuredClone(truck));
   }
 
@@ -66,11 +68,13 @@ export class MockCwisAdapter implements CwisAdapter {
    * several SDOs.
    */
   weighIn(input: WeighInInput): CwisTicket {
+    // Newest first: a card or plate may belong to an older truck that never weighed in.
+    const newestFirst = [...this.pending.values()].reverse();
     const pending =
-      [...this.pending.values()].find((p) => input.cardNo && p.cardNo === input.cardNo) ??
-      [...this.pending.values()].find(
-        (p) => normalizePlate(p.plate) === normalizePlate(input.plate),
-      );
+      newestFirst.find((p) => input.cardNo && p.cardNo === input.cardNo) ??
+      newestFirst.find((p) => normalizePlate(p.plate) === normalizePlate(input.plate));
+    // The weigh-in uses up the pending truck, as CWIS does.
+    if (pending) this.pending.delete(pending.tripNo);
     const at = this.now();
     const ticket: CwisTicket = {
       ticketNo: `WB${this.nextTicket++}`,

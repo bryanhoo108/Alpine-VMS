@@ -62,6 +62,9 @@ export interface JobRunner {
   /** Run a job now (still never overlapping itself). */
   runNow(name: string): Promise<void>;
   status(): JobStatus[];
+  /** Stop starting jobs and wait for running ones to finish (demo reset). */
+  pause(): Promise<void>;
+  resume(): void;
   stop(): void;
 }
 
@@ -76,7 +79,9 @@ export function startJobs(
     jobs.map((j) => [j.name, { lastRunAt: null, lastOkAt: null, lastError: null }]),
   );
 
+  let paused = false;
   const runNow = (name: string): Promise<void> => {
+    if (paused) return Promise.resolve();
     const job = jobs.find((j) => j.name === name);
     if (!job) return Promise.reject(new Error(`no job ${name}`));
     const busy = running.get(name);
@@ -118,6 +123,13 @@ export function startJobs(
 
   return {
     runNow,
+    async pause() {
+      paused = true;
+      await Promise.allSettled([...running.values()]);
+    },
+    resume() {
+      paused = false;
+    },
     status: () =>
       jobs.map((j) => ({ name: j.name, running: running.has(j.name), ...state.get(j.name)! })),
     stop() {

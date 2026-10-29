@@ -9,6 +9,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { seed } from '../../src/db/seed.js';
+import { demoClock } from '../../src/demo/clock.js';
 import { EventBus } from '../../src/events.js';
 import type { ServiceDeps } from '../../src/services/deps.js';
 import { refreshSdoCache } from '../../src/services/sdoCache.js';
@@ -39,9 +40,11 @@ export interface TestApp {
 export async function createTestApp(
   start = new Date('2026-10-21T02:00:00Z'),
   env: NodeJS.ProcessEnv = {},
+  /** Use the real server clock (demo day tests build times relative to now). */
+  opts: { realClock?: boolean } = {},
 ): Promise<TestApp> {
   const clock = { now: start };
-  const now = () => clock.now;
+  const now = opts.realClock ? demoClock.now : () => clock.now;
   const t = await createTestDb();
   const adapterConfig = adapterConfigFromEnv({});
   const adapters = createAdapters({ ...adapterConfig, now });

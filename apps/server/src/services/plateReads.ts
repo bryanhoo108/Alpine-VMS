@@ -10,6 +10,8 @@ export async function recordPlateRead(
   deps: { db: DbOrTx; files: FileStore; events: EventBus },
   siteId: string,
   event: PlateEvent,
+  /** announce=false stores the read without telling the gate screens (demo auto-play). */
+  opts: { announce?: boolean } = {},
 ) {
   let photoId: string | null = null;
   if (event.photo) {
@@ -37,6 +39,8 @@ export async function recordPlateRead(
       readAt: event.readAt,
     })
     .returning();
-  deps.events.publish({ type: 'plate_read', camera: event.camera, plateReadId: row!.id });
+  if (opts.announce !== false) {
+    deps.events.publish({ type: 'plate_read', camera: event.camera, plateReadId: row!.id });
+  }
   return row!;
 }

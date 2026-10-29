@@ -13,7 +13,7 @@ cp .env.example .env     # set SEED_DEMO_PIN (4-8 digits) and SEED_DEMO_PASSWORD
 docker compose up --build
 ```
 
-Open http://localhost:8080. Sample data and mock SAP / CWIS / cameras are loaded; see "Trying ..." below.
+Open http://localhost:8080. Sample data and mock SAP / CWIS / cameras are loaded; see "Trying ..." below. Add `DEMO_DAY=on` to `.env` for a busy day already under way (see "Showing a demo").
 
 ## Layout
 
@@ -22,7 +22,7 @@ Open http://localhost:8080. Sample data and mock SAP / CWIS / cameras are loaded
 | `packages/domain`   | Pure business rules: exit status, SDO→DO linking, pre-registration matching, plate matching, card lifecycle, SDO change, gate-in alerts and the alert catalogue          |
 | `packages/adapters` | `SapAdapter`, `CwisAdapter`, `LprAdapter`, `Notifier` interfaces, mocks with sample data, and contract tests. `createAdapters` is the only place that picks mock or real |
 | `apps/server`       | Fastify server, PostgreSQL schema and migrations (Drizzle), seed data                                                                                                    |
-| `apps/web`          | Guard, clerk and checker screens _(next steps)_                                                                                                                          |
+| `apps/web`          | Guard, clerk, checker and Live overview screens                                                                                                                          |
 
 ## Demo link on Render
 
@@ -33,7 +33,21 @@ For showing the system to people without installing anything. Sample data and mo
 3. When asked, enter **SEED_DEMO_PIN** (4–8 digits, for guards and checkers) and **SEED_DEMO_PASSWORD** (10+ characters, for clerk and supervisor). Click **Apply**.
 4. Wait for the first build (about 5–10 minutes), then open the `…onrender.com` link Render shows.
 
-Free plan: the app sleeps after 15 minutes without visitors, so open the link a minute before a demo. On waking, the mock SAP and CWIS start again with fresh sample data; trucks already entered stay. The free database expires after 30 days; upgrading the app to Starter (about USD 7/month) keeps it always on.
+Free plan: the app sleeps after 15 minutes without visitors, so open the link a minute before a demo. On waking, the busy sample day is built again from scratch (`DEMO_DAY=on` in `render.yaml`), so every demo starts from the same story. The free database expires after 30 days; upgrading the app to Starter (about USD 7/month) keeps it always on.
+
+## Showing a demo
+
+With `DEMO_DAY=on` (mock adapters only) each start wipes the day's activity and builds a busy day through the real services: 6 trucks already left (3 green, 2 amber, 1 red) and 9 inside, each in a different situation (waiting check, ready to go, SDO amended, plate differs at the weighbridge, load rejected, two trucks on one SDO, watchlisted plate, coil truck waiting to weigh out). The pre-registered trucks WXY 1234, BPN 2045 and BMK 7710 are kept free for you to bring in live.
+
+A suggested 10-minute walk-through:
+
+1. **Live** (sign in as `supervisor`): trucks inside and where each one is, exits by colour, open alerts, SAP / CWIS sync. Tap a truck for its **timeline** (every step, who did it, when).
+2. **In**: press the mock camera for WXY 1234: Collect, photos, card. It appears on Live straight away.
+3. **Office** (clerk): match a walk-in, link a DO, clear an alert. **Left today** shows trucks that left, read-only, with their timelines.
+4. **Check**: approve BQA 7701 (its SDO was amended, so the line shows "SDO changed").
+5. **Out**: let BMK 7711 out green; let WRC 6650 out red and hear the alarm.
+
+On **Live**, **Auto-play** moves its own trucks (plates starting with JQ) one step every 20 seconds so the screens change by themselves while you talk; **Restart day** rebuilds the sample day. `DEMO_AUTOPLAY=on` starts auto-play at boot. Only the supervisor sees these controls.
 
 ## Develop
 

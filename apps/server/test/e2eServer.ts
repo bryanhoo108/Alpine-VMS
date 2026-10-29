@@ -6,6 +6,7 @@
 import { adapterConfigFromEnv, createAdapters } from '@vms/adapters';
 import { sql } from 'drizzle-orm';
 import { buildApp } from '../src/app.js';
+import { demoClock } from '../src/demo/clock.js';
 import { seed } from '../src/db/seed.js';
 import { EventBus } from '../src/events.js';
 import { refreshSdoCache } from '../src/services/sdoCache.js';
@@ -19,7 +20,8 @@ const PASSWORD = process.env.E2E_PASSWORD ?? 'e2e-password';
 
 const t = await createTestDb();
 const adapterConfig = adapterConfigFromEnv({});
-const adapters = createAdapters(adapterConfig);
+// Demo clock, so "Restart day" on the Live screen can backdate its trucks.
+const adapters = createAdapters({ ...adapterConfig, now: demoClock.now });
 const config = testConfig(t.url, { WEB_DIR: new URL('../../web/dist', import.meta.url).pathname });
 const reseed = async () => {
   adapters.mocks.sap!.reset();
@@ -30,12 +32,19 @@ const reseed = async () => {
     demoPassword: PASSWORD,
     now: new Date(),
   });
-  const deps = { db: t.db, adapters, events: new EventBus(), config, now: () => new Date() };
+  const deps = { db: t.db, adapters, events: new EventBus(), config, now: demoClock.now };
   await refreshSdoCache(deps, await getSite(t.db, 'APM'), { full: true });
 };
 await reseed();
 
-const app = await buildApp({ config, db: t.db, adapters, adapterConfig, jobs: true });
+const app = await buildApp({
+  config,
+  db: t.db,
+  adapters,
+  adapterConfig,
+  jobs: true,
+  now: demoClock.now,
+});
 
 app.post('/__e2e/reset', async () => {
   const rows = await t.db.execute<{ tablename: string }>(

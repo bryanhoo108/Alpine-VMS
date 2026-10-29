@@ -27,6 +27,12 @@ services:
         sync: false
       - key: SEED_DEMO_PASSWORD
         sync: false
+      # Fill the screens with a busy sample day (rebuilt on every start).
+      - key: DEMO_DAY
+        value: 'on'
+      # Trucks move by themselves every 20 s (can also be switched on the Live screen).
+      - key: DEMO_AUTOPLAY
+        value: 'off'
 
 databases:
   - name: alpine-vms-demo-db

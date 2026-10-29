@@ -7,17 +7,18 @@ import { GateIn } from './screens/GateIn';
 import { GateOut } from './screens/GateOut';
 import { Login } from './screens/Login';
 import { Office } from './screens/office/Office';
+import { Overview } from './screens/Overview';
 import { Placeholder } from './screens/Placeholder';
 
-type View = 'gate-in' | 'gate-out' | 'office' | 'checker';
+type View = 'gate-in' | 'gate-out' | 'office' | 'checker' | 'overview';
 
 /** Which screens each role may open; the first is the default. */
 const VIEWS: Record<Me['role'], View[]> = {
   guard: ['gate-in', 'gate-out'],
-  clerk: ['office'],
+  clerk: ['office', 'overview'],
   checker: ['checker'],
-  supervisor: ['office', 'gate-in', 'gate-out', 'checker'],
-  admin: ['office', 'gate-in', 'gate-out', 'checker'],
+  supervisor: ['overview', 'office', 'gate-in', 'gate-out', 'checker'],
+  admin: ['overview', 'office', 'gate-in', 'gate-out', 'checker'],
 };
 
 const TITLES: Record<View, string> = {
@@ -25,13 +26,15 @@ const TITLES: Record<View, string> = {
   'gate-out': 'Gate Out',
   office: 'Office',
   checker: 'Check',
+  overview: 'Live overview',
 };
-/** Short labels so four fit in the title bar on a phone. */
+/** Short labels so five fit in the title bar on a phone. */
 const NAV: Record<View, string> = {
   'gate-in': 'In',
   'gate-out': 'Out',
   office: 'Office',
   checker: 'Check',
+  overview: 'Live',
 };
 
 /** Each tablet remembers its post (entry or exit); a browser-only convenience. */
@@ -95,6 +98,7 @@ export function App() {
       {current === 'gate-out' && <GateOut mock={mock} />}
       {current === 'office' && <Office mock={mock} />}
       {current === 'checker' && <Checker />}
+      {current === 'overview' && <Overview demoControls={mock && me.role !== 'clerk'} />}
       {mock && (current === 'gate-in' || current === 'gate-out') && (
         <DevPanel camera={current === 'gate-in' ? 'entry' : 'exit'} />
       )}
