@@ -34,6 +34,9 @@ export const ALERTS = {
   PLATE_ALREADY_ON_SITE: { level: 'amber', notify: ['supervisor'], label: 'Already inside' },
   LPR_CORRECTED: { level: 'logged', notify: [], label: 'Plate changed' },
   LPR_NOT_CONFIRMED: { level: 'logged', notify: [], label: 'Plate not read' },
+  // Visitors and contractors (decisions V3, V8)
+  HOST_NOT_CONFIRMED: { level: 'amber', notify: ['supervisor'], label: 'No host OK' },
+  VISIT_OVERSTAY: { level: 'amber', notify: ['supervisor'], label: 'Stayed late' },
 } as const satisfies Record<string, AlertDefinition>;
 
 export type AlertType = keyof typeof ALERTS;
