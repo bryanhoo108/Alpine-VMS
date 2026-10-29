@@ -40,6 +40,7 @@ import { audit, type DbOrTx } from './audit.js';
 import type { ServiceDeps } from './deps.js';
 import { conflict, notFound, ServiceError } from './errors.js';
 import { activeWatchlist } from './gateIn.js';
+import { icReadOf } from './icRead.js';
 import type { Site } from './sites.js';
 
 export interface VisitGateInInput {
@@ -61,6 +62,8 @@ export interface VisitGateInInput {
   cardNo: string;
   /** IC photo(s) uploaded beforehand. */
   photoIds: string[];
+  /** The guard tapped "Wrong" on the number read from the IC photo. */
+  icRejected?: boolean;
 }
 
 export type VisitGateInResult =
@@ -170,6 +173,7 @@ export async function visitGateIn(
       : undefined;
     const raised = visitGateInAlerts({ hostConfirmed, watchlistReason: watch?.reason ?? null });
 
+    const ic = await icReadOf(tx, site.id, input.photoIds, input.icRejected ?? false);
     const visitNo = await nextVisitNo(tx, site.id, today);
     const [visit] = await tx
       .insert(visits)
@@ -182,6 +186,9 @@ export async function visitGateIn(
         company,
         phone,
         groupSize: input.groupSize,
+        icLast4: ic?.last4 ?? null,
+        icEncrypted: ic?.encrypted ?? null,
+        icName: ic?.name ?? null,
         hostId: host?.id ?? null,
         hostConfirmed,
         plate,
@@ -239,6 +246,7 @@ export async function visitGateIn(
         plate,
         cardNo: card.cardNo,
         photos: input.photoIds.length,
+        icLast4: ic?.last4 ?? null,
       },
       at: now,
     });

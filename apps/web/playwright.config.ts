@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+
+/** The fake camera shows a fictional sample IC, so photos can be read like a real one. */
+const FAKE_CAMERA = fileURLToPath(new URL('./e2e/fixtures/sample-ic.mjpeg', import.meta.url));
 
 const PORT = 8090;
 
@@ -18,7 +22,11 @@ export default defineConfig({
     permissions: ['camera'],
     launchOptions: {
       ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
-      args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+      args: [
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
+        `--use-file-for-fake-video-capture=${FAKE_CAMERA}`,
+      ],
     },
   },
   projects: [

@@ -94,6 +94,11 @@ test.describe('gate in', () => {
     await page.getByRole('button', { name: 'Fewer people' }).click();
     await page.getByRole('button', { name: 'Photo' }).click();
     await expect(page.getByTestId('count-ic')).toHaveText('1');
+    const ic = page.getByTestId('ic-read');
+    await expect(ic).toContainText('5678', { timeout: 15_000 });
+    // Not the person in front of the guard: "Wrong" keeps the read off the record.
+    await ic.getByRole('button', { name: 'Wrong' }).click();
+    await expect(ic).toHaveAttribute('data-rejected', 'true');
     await expectGuardLayout(page);
     await page.screenshot(shot('3-photo'));
     await page.getByRole('button', { name: 'Test card' }).click();

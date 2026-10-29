@@ -468,3 +468,11 @@ export interface Muster {
   groups: number;
   safeGroups: number;
 }
+
+/** Read from an IC photo. The full number never comes to the screen. */
+export interface IcReadView {
+  found: boolean;
+  masked: string | null;
+  last4: string | null;
+  name: string | null;
+}

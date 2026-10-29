@@ -196,6 +196,7 @@ export const visitorRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) =>
             plateReadId: { type: ['string', 'null'], format: 'uuid' },
             cardNo: { type: 'string', minLength: 1, maxLength: 64 },
             photoIds: { type: 'array', maxItems: 10, items: uuid },
+            icRejected: { type: 'boolean' },
           },
         },
       },

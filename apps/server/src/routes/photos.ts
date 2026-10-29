@@ -4,6 +4,7 @@ import type { AppContext } from '../app.js';
 import { currentUser, requireRole } from '../auth/session.js';
 import { photos } from '../db/schema.js';
 import { isAllowedUpload } from '../files.js';
+import { readIcPhoto } from '../services/icRead.js';
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const KINDS = ['ic', 'document', 'load'] as const;
@@ -85,5 +86,17 @@ export const photoRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
         );
       return ctx.files.read(row.path);
     },
+  );
+
+  /** Read the IC number and name from an IC photo; only the last 4 digits come back. */
+  app.post<{ Params: { id: string } }>(
+    '/api/photos/:id/read-ic',
+    {
+      preHandler: requireRole('guard', 'clerk', 'supervisor'),
+      schema: {
+        params: { type: 'object', properties: { id: { type: 'string', format: 'uuid' } } },
+      },
+    },
+    (req) => readIcPhoto(ctx, ctx.site, req.params.id),
   );
 };

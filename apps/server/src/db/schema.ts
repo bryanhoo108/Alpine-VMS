@@ -107,12 +107,17 @@ export const vehicles = pgTable(
   (t) => [uniqueIndex('vehicles_site_plate').on(t.siteId, t.plate)],
 );
 
-/** Drivers. Only the last 4 IC digits are stored (decision Q2); the IC photo is in `photos`. */
+/**
+ * Drivers. Screens get only the last 4 IC digits; the full number is kept
+ * encrypted when read from the IC photo (decision Q2a). The photo is in `photos`.
+ */
 export const persons = pgTable('persons', {
   id: id(),
   siteId: siteId(),
   name: text('name'),
   icLast4: text('ic_last4'),
+  /** Full IC, encrypted (icCrypto.ts); cleared after the retention period. */
+  icEncrypted: text('ic_encrypted'),
   transporterId: uuid('transporter_id').references(() => transporters.id),
   createdAt: createdAt(),
 });
@@ -227,6 +232,11 @@ export const photos = pgTable('photos', {
   /** PDPA retention: IC photos are deleted after this time. */
   deleteAfter: ts('delete_after'),
   deletedAt: ts('deleted_at'),
+  /** What was read from an IC photo (cleared with the photo). */
+  icLast4: text('ic_last4'),
+  icName: text('ic_name'),
+  icEncrypted: text('ic_encrypted'),
+  icReadAt: ts('ic_read_at'),
 });
 
 // --- SDOs, DOs, tickets (copies of SAP and CWIS data) ------------------------
@@ -562,8 +572,11 @@ export const visits = pgTable(
     company: text('company'),
     phone: text('phone'),
     groupSize: integer('group_size').notNull(),
-    /** Only the last 4 IC digits (decision Q2); the photo is in `photos`. */
+    /** Last 4 IC digits for screens; full number encrypted (decision Q2a). */
     icLast4: text('ic_last4'),
+    icEncrypted: text('ic_encrypted'),
+    /** Name read from the IC (the registered name can differ). */
+    icName: text('ic_name'),
     hostId: uuid('host_id').references(() => hosts.id),
     /** Invited, or the guard phoned the host and tapped "Host OK". */
     hostConfirmed: boolean('host_confirmed').notNull(),

@@ -35,6 +35,7 @@ import {
   type PreReg,
 } from '../api';
 import { BigButton } from '../components/BigButton';
+import { IcReadChip, useIcRead } from '../components/IcRead';
 import { PAGE, Pager } from '../components/Pager';
 import { TwoPane } from '../components/TwoPane';
 import { PhotoCapture } from '../components/PhotoCapture';
@@ -95,6 +96,8 @@ export function GateIn({ mock }: { mock: boolean }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<GateInResponse | null>(null);
   const uploads = useRef<Promise<string>[]>([]);
+  const ic = useIcRead();
+  const clearIc = ic.clear;
   const ignoredReads = useRef(new Set<string>());
 
   const load = useCallback(async () => {
@@ -109,11 +112,12 @@ export function GateIn({ mock }: { mock: boolean }) {
     setError(null);
     setResult(null);
     uploads.current = [];
+    clearIc();
     // Drop the old state so the waiting screen never re-opens a used read.
     setEntry(null);
     setStage('waiting');
     void load();
-  }, [load]);
+  }, [load, clearIc]);
 
   // A fresh camera read moves the waiting screen to the plate screen.
   useEffect(() => {
@@ -243,9 +247,9 @@ export function GateIn({ mock }: { mock: boolean }) {
 
   const onPhoto = (kind: PhotoKind, blob: Blob) => {
     setPhotos((c) => ({ ...c, [kind]: c[kind] + 1 }));
-    uploads.current.push(
-      api.upload<{ id: string }>(`/api/photos?kind=${kind}`, blob).then((r) => r.id),
-    );
+    const id = api.upload<{ id: string }>(`/api/photos?kind=${kind}`, blob).then((r) => r.id);
+    uploads.current.push(id);
+    if (kind === 'ic') ic.read(id);
   };
 
   const submit = async (cardNo: string) => {
@@ -264,6 +268,7 @@ export function GateIn({ mock }: { mock: boolean }) {
         photoIds,
         transporterId: draft.transporterId,
         preRegistrationId: draft.pickedPreReg ? (draft.preReg?.id ?? null) : null,
+        icRejected: ic.rejected,
       });
       if (draft.plateReadId) ignoredReads.current.add(draft.plateReadId);
       setResult(res);
@@ -499,6 +504,7 @@ export function GateIn({ mock }: { mock: boolean }) {
                 </div>
               </div>
             </div>
+            <IcReadChip ic={ic} />
             {error && (
               <div
                 role="alert"

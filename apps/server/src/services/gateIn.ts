@@ -17,17 +17,19 @@ import {
 import { and, asc, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import {
   cards,
+  persons,
   photos,
   plateReads,
   preRegistrations,
   transporters,
-  trips,
   tripSdos,
+  trips,
   vehicles,
   watchlist,
 } from '../db/schema.js';
 import { siteDate } from '../time.js';
 import { deliverAlerts, recordAlerts } from './alerts.js';
+import { icReadOf } from './icRead.js';
 import { queueCwisPush } from './cwis.js';
 import { cachedSdos, snapshotLines } from './sdoCache.js';
 import type { ServiceDeps } from './deps.js';
@@ -203,6 +205,8 @@ export interface GateInInput {
   transporterId: string | null;
   /** Set when the guard picked from the pre-registration list (misread plate). */
   preRegistrationId: string | null;
+  /** The guard tapped "Wrong" on the number read from the IC photo. */
+  icRejected?: boolean;
 }
 
 export type GateInResult =
@@ -362,6 +366,23 @@ export async function gateIn(
         );
     }
 
+    // Driver from the IC photo read, if the guard did not reject it (decision Q2a).
+    const ic = await icReadOf(tx, site.id, input.photoIds, input.icRejected ?? false);
+    if (ic) {
+      const [driver] = await tx
+        .insert(persons)
+        .values({
+          siteId: site.id,
+          name: ic.name,
+          icLast4: ic.last4,
+          icEncrypted: ic.encrypted,
+          transporterId,
+          createdAt: now,
+        })
+        .returning({ id: persons.id });
+      await tx.update(trips).set({ driverId: driver!.id }).where(eq(trips.id, trip!.id));
+    }
+
     const alertRows = await recordAlerts(tx, site.id, trip!.id, raised, now);
 
     // Carry-forward to CWIS is queued; the gate never waits on CWIS.
@@ -383,6 +404,8 @@ export async function gateIn(
         preRegistrationId: preReg?.id ?? null,
         sdoNos,
         photos: input.photoIds.length,
+        // Only the masked IC goes into the audit trail.
+        driverIcLast4: ic?.last4 ?? null,
       },
       at: now,
     });

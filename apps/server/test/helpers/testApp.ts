@@ -28,6 +28,8 @@ export interface TestApp {
   cwis: MockCwisAdapter;
   notifier: LogNotifier;
   clock: { now: Date };
+  /** Text the fake IC reader "sees" on the next IC photo. */
+  icText: { value: string };
   /** For calling services and jobs directly (jobs do not run on their own in tests). */
   deps: ServiceDeps;
   site: Site;
@@ -55,7 +57,9 @@ export async function createTestApp(
     now: start,
   });
   const config = testConfig(t.url, env);
-  const app = await buildApp({ config, db: t.db, adapters, adapterConfig, now });
+  const icText = { value: '' };
+  const icReader = { text: async () => icText.value, close: async () => {} };
+  const app = await buildApp({ config, db: t.db, adapters, adapterConfig, now, icReader });
   const deps: ServiceDeps = { db: t.db, adapters, events: new EventBus(), config, now };
   const site = await getSite(t.db, 'APM');
   await refreshSdoCache(deps, site, { full: true });
@@ -68,6 +72,7 @@ export async function createTestApp(
     cwis: adapters.mocks.cwis!,
     notifier: adapters.notifier as LogNotifier,
     clock,
+    icText,
     deps,
     site,
     async login(username, secret) {

@@ -33,6 +33,7 @@ import {
   type VisitType,
 } from '../api';
 import { BigButton } from '../components/BigButton';
+import { IcReadChip, useIcRead } from '../components/IcRead';
 import { PAGE, Pager } from '../components/Pager';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { QrScanner } from '../components/QrScanner';
@@ -93,6 +94,7 @@ export function VisitorIn({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<VisitInResponse | null>(null);
   const uploads = useRef<Promise<string>[]>([]);
+  const ic = useIcRead();
 
   useEffect(() => {
     void api.get<Invite[]>('/api/gate/invites/today').then(setExpected);
@@ -156,7 +158,9 @@ export function VisitorIn({
 
   const onPhoto = (blob: Blob) => {
     setPhotos((n) => n + 1);
-    uploads.current.push(api.upload<{ id: string }>('/api/photos?kind=ic', blob).then((r) => r.id));
+    const id = api.upload<{ id: string }>('/api/photos?kind=ic', blob).then((r) => r.id);
+    uploads.current.push(id);
+    ic.read(id);
   };
 
   const submit = async (cardNo: string) => {
@@ -180,6 +184,7 @@ export function VisitorIn({
         plateReadId: car?.plateReadId ?? null,
         cardNo,
         photoIds,
+        icRejected: ic.rejected,
       });
       setResult(res);
       setStage('done');
@@ -371,6 +376,7 @@ export function VisitorIn({
                 </div>
               </div>
             </div>
+            <IcReadChip ic={ic} />
             <GroupStepper value={v.groupSize} onChange={(n) => setV({ ...v, groupSize: n })} />
             {error && (
               <ProblemBar

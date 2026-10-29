@@ -99,6 +99,10 @@ Sign in as **Exit Guard** and tap **Out** in the title bar (each tablet remember
 
 Daily reconciliation (exits with no DO, DOs with no exit): `GET /api/reports/reconcile?date=YYYY-MM-DD` (clerk or supervisor).
 
+### IC reading
+
+After the IC photo (trucks and visitors), the server reads the IC number and name from the photo, offline (Tesseract with the English model bundled; nothing is downloaded). The guard sees only the last 4 digits and the name, and taps **Wrong** if they do not match. The full number is stored encrypted with `IC_ENCRYPTION_KEY` (without the key only the last 4 digits are kept) and cleared after `IC_PHOTO_RETENTION_DAYS`. The driver's name and last 4 digits appear on the truck in the Office screen.
+
 ### Trying visitors and contractors
 
 - **Office → Visitors** (clerk or supervisor): create an invite (visitor or contractor, how many people, host, dates, end time, car plate). Each invite has a QR and an 8-letter code to read out; **Share on WhatsApp** opens your own WhatsApp with the message (on a phone, with the QR image), **Copy QR** copies the image, **Save QR** saves it. Hosts (Alpine staff that visitors come to see) are added here too.

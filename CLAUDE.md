@@ -36,7 +36,7 @@ Swapping a mock for the real thing must not touch screen or business logic.
 ## Data and privacy
 
 - Sample data only. No real IC numbers, customer names, credentials or SAP/CWIS connection strings in the repo. Secrets go in environment variables, with a `.env.example` listing the names.
-- IC numbers are masked on screen (show last 4 only). IC photos have a configurable retention period (PDPA).
+- IC numbers are masked on screen (show last 4 only). IC photos have a configurable retention period (PDPA). The full IC number read from the photo is stored only encrypted (decision Q2a) and never sent to a screen or the audit log.
 
 ## Guard and checker screens
 

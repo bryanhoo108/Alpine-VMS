@@ -14,6 +14,7 @@ import { checkerRoutes } from './routes/checker.js';
 import { visitorRoutes } from './routes/visitors.js';
 import { clerkRoutes } from './routes/clerk.js';
 import { AutoPlay } from './demo/autoplay.js';
+import { TesseractIcReader, type IcReader } from './ocr.js';
 import { buildDemoDay } from './demo/scenario.js';
 import { devRoutes, type DevContext } from './routes/dev.js';
 import { eventRoutes } from './routes/events.js';
@@ -34,6 +35,8 @@ export interface AppDeps {
   jobs?: boolean;
   /** Demo with mock adapters: build the busy sample day on start; start auto-play. */
   demo?: { day: boolean; autoplay: boolean };
+  /** Reads text from IC photos; Tesseract on this server unless a test passes its own. */
+  icReader?: IcReader;
   /** Browser-test server only: gets the live context (to stop auto-play between tests). */
   onContext?: (ctx: AppContext) => void;
 }
@@ -44,6 +47,7 @@ export interface AppContext extends AppDeps {
   events: EventBus;
   files: FileStore;
   now: () => Date;
+  icReader: IcReader;
   jobRunner: JobRunner | null;
   /** Demo auto-play (mock adapters only). */
   autoplay: AutoPlay | null;
@@ -75,6 +79,7 @@ export async function buildApp(
     site,
     events: new EventBus(),
     files: new FileStore(deps.config.filesDir),
+    icReader: deps.icReader ?? new TesseractIcReader(),
     now: deps.now ?? (() => new Date()),
     jobRunner: null,
     autoplay: null,
@@ -131,6 +136,7 @@ export async function buildApp(
     if (deps.demo?.autoplay) ctx.autoplay.start();
     app.addHook('onClose', async () => ctx.autoplay?.stop());
   }
+  app.addHook('onClose', async () => ctx.icReader.close());
   deps.onContext?.(ctx);
 
   // Camera reads arrive from the LPR adapter (webhook for real cameras, dev panel for the mock).
