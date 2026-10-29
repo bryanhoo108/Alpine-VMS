@@ -368,3 +368,36 @@ export interface Overview {
     cwisOldestWaitingAt: string | null;
   };
 }
+
+// --- Visitors and contractors ---
+
+export type VisitType = 'visitor' | 'contractor';
+
+export interface Host {
+  id: string;
+  name: string;
+  department: string | null;
+  phone: string | null;
+  active: boolean;
+}
+
+export interface Invite {
+  id: string;
+  code: string;
+  qrText: string;
+  type: VisitType;
+  name: string;
+  company: string | null;
+  phone: string | null;
+  groupSize: number;
+  host: { id: string; name: string; department: string | null } | null;
+  purpose: string | null;
+  validFrom: string;
+  validTo: string;
+  untilTime: string | null;
+  plate: string | null;
+  createdAt: string;
+  state: 'not_yet' | 'expected' | 'expired' | 'cancelled';
+  insideVisitId: string | null;
+  lastArrivalAt: string | null;
+}

@@ -8,6 +8,7 @@ export type LiveEvent =
    * Sent by this hook when the live connection opens or reopens. Anything
    * that happened while it was down was missed, so screens reload on it.
    */
+  | { type: 'visit_changed'; visitId: string }
   | { type: 'connected' };
 
 /** Subscribe to server events; reconnects automatically (EventSource retry). */
