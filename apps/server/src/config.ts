@@ -4,7 +4,10 @@ export interface Config {
   port: number;
   siteCode: string;
   filesDir: string;
+  /** IC photos and full IC numbers are deleted after this many days (PDPA). */
   icPhotoRetentionDays: number;
+  /** Key for full IC numbers; without it only the last 4 digits are kept. */
+  icEncryptionKey: string | null;
   /** HMAC key for session cookies; at least 32 characters. */
   sessionSecret: string;
   /** Hours a sign-in lasts (a guard shift plus margin). */
@@ -41,6 +44,13 @@ function httpsFiles(env: NodeJS.ProcessEnv): Config['https'] {
   return { certFile, keyFile };
 }
 
+function icKey(env: NodeJS.ProcessEnv): string | null {
+  const key = env.IC_ENCRYPTION_KEY || '';
+  if (!key) return null;
+  if (key.length < 32) throw new Error('IC_ENCRYPTION_KEY must be at least 32 characters');
+  return key;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const sessionSecret = required(env, 'SESSION_SECRET');
   if (sessionSecret.length < 32) throw new Error('SESSION_SECRET must be at least 32 characters');
@@ -51,6 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     siteCode: env.SITE_CODE || 'APM',
     filesDir: env.FILES_DIR || './files',
     icPhotoRetentionDays: int(env, 'IC_PHOTO_RETENTION_DAYS', 90),
+    icEncryptionKey: icKey(env),
     sessionSecret,
     sessionHours: int(env, 'SESSION_HOURS', 14),
     webDir: env.WEB_DIR || null,

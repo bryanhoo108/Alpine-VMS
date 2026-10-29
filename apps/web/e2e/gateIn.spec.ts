@@ -23,6 +23,10 @@ test('pre-registered truck: Collect, 2 photos, card tap', async ({ page }) => {
   await expect(page.getByText('Tap card')).toBeVisible();
   await page.getByRole('button', { name: 'Photo' }).click(); // tap 2 (IC)
   await expect(page.getByTestId('count-ic')).toHaveText('1');
+  // The IC is read on the server, offline: only the last 4 digits come back.
+  const ic = page.getByTestId('ic-read');
+  await expect(ic).toContainText('••••••-••-5678', { timeout: 15_000 });
+  await expect(ic).toContainText('SAMPLE DRIVER BIN DEMO');
   await page.getByRole('button', { name: 'Photo' }).click(); // tap 3 (documents)
   await expect(page.getByTestId('count-doc')).toHaveText('1');
   await expectGuardLayout(page);
@@ -38,6 +42,15 @@ test('pre-registered truck: Collect, 2 photos, card tap', async ({ page }) => {
 
   await done.click();
   await expect(page.getByText('Waiting for truck')).toBeVisible();
+
+  // The driver is on the trip, masked.
+  const [trip] = await (await page.request.get('/api/gate/exit')).json().then((x) => x.onSite);
+  const clerk = await page.request.post('/api/auth/login', {
+    data: { username: 'clerk', secret: process.env.E2E_PASSWORD ?? 'e2e-password' },
+  });
+  expect(clerk.ok()).toBe(true);
+  const detail = await (await page.request.get(`/api/clerk/trips/${trip.id}`)).json();
+  expect(detail.driver).toEqual({ name: 'SAMPLE DRIVER BIN DEMO', icLast4: '5678' });
 });
 
 test('watchlist plate shows red and still lets the guard continue', async ({ page }) => {

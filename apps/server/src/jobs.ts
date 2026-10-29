@@ -11,7 +11,7 @@ import { refreshSdoCache } from './services/sdoCache.js';
 import type { Site } from './services/sites.js';
 import type { EventBus } from './events.js';
 import type { FileStore } from './files.js';
-import { purgeExpiredPhotos } from './services/retention.js';
+import { purgeExpiredIcNumbers, purgeExpiredPhotos } from './services/retention.js';
 
 export interface JobDef {
   name: string;
@@ -45,6 +45,12 @@ export function defineJobs(deps: ServiceDeps & { files: FileStore }, site: Site)
       name: 'photo-retention',
       everyMs: 60 * 60_000,
       run: () => purgeExpiredPhotos(deps.db, deps.files, site.id, deps.now()),
+    },
+    {
+      name: 'ic-number-retention',
+      everyMs: 60 * 60_000,
+      run: () =>
+        purgeExpiredIcNumbers(deps.db, site.id, deps.now(), deps.config.icPhotoRetentionDays),
     },
   ];
 }

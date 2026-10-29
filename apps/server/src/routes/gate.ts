@@ -42,6 +42,7 @@ export const gateRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
             photoIds: { type: 'array', maxItems: 20, items: { type: 'string', format: 'uuid' } },
             transporterId: { type: ['string', 'null'], format: 'uuid' },
             preRegistrationId: { type: ['string', 'null'], format: 'uuid' },
+            icRejected: { type: 'boolean' },
           },
         },
       },

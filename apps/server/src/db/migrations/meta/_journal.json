@@ -29,6 +29,13 @@
       "when": 1793245718334,
       "tag": "0003_visitors",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793247810676,
+      "tag": "0004_ic_reading",
+      "breakpoints": true
     }
   ]
 }
