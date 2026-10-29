@@ -23,4 +23,6 @@ elif [ -n "$SITE_NAME" ]; then
 else
   npx tsx src/db/migrate.ts
 fi
-exec npx tsx src/main.ts
+# One Node process (not npx → tsx → node): about 150 MB less memory, which
+# matters on small servers (the Render demo has 512 MB).
+exec node --import tsx src/main.ts

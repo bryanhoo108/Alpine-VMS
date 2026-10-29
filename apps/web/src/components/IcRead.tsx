@@ -7,7 +7,15 @@ import { IdCard, Loader2, RotateCcw, X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { api, type IcReadView } from '../api';
 
-type IcState = { status: 'none' } | { status: 'reading' } | { status: 'done'; read: IcReadView };
+type IcState =
+  | { status: 'none' }
+  | { status: 'reading' }
+  | { status: 'done'; read: IcReadView }
+  /** The server did not answer (busy, restarting, no network): not the card's fault. */
+  | { status: 'failed' };
+
+/** Stop waiting after this long; the guard can take the photo again. */
+const READ_TIMEOUT_MS = 60_000;
 
 export function useIcRead() {
   const [state, setState] = useState<IcState>({ status: 'none' });
@@ -19,17 +27,15 @@ export function useIcRead() {
     const n = ++latest.current;
     setRejected(false);
     setState({ status: 'reading' });
-    photoId
-      .then((id) => api.post<IcReadView>(`/api/photos/${id}/read-ic`, {}))
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), READ_TIMEOUT_MS),
+    );
+    Promise.race([
+      photoId.then((id) => api.post<IcReadView>(`/api/photos/${id}/read-ic`, {})),
+      timeout,
+    ])
       .then((r) => n === latest.current && setState({ status: 'done', read: r }))
-      .catch(
-        () =>
-          n === latest.current &&
-          setState({
-            status: 'done',
-            read: { found: false, masked: null, last4: null, name: null },
-          }),
-      );
+      .catch(() => n === latest.current && setState({ status: 'failed' }));
   }, []);
 
   /** Next vehicle or visitor: forget the last read. */
@@ -52,6 +58,17 @@ export function IcReadChip({ ic }: { ic: ReturnType<typeof useIcRead> }) {
         data-testid="ic-read"
       >
         <Loader2 className="size-8 animate-spin" /> Reading IC…
+      </div>
+    );
+  }
+  if (state.status === 'failed') {
+    return (
+      <div
+        className="flex min-h-16 items-center gap-3 rounded-2xl bg-warn-soft px-4 text-xl font-bold text-warn"
+        data-testid="ic-read"
+        data-failed="true"
+      >
+        <RotateCcw className="size-8 shrink-0" /> IC reader busy · photo again
       </div>
     );
   }

@@ -103,6 +103,9 @@ function classify(line: string): LineKind {
     return { kind: 'end' };
   }
   const words = nameWords(line);
+  // A one- or two-letter bit at the end of a line is usually the card pattern
+  // ("BIN DEMO LS"); short name words (AH, NG) sit between longer ones.
+  while (words.length > 1 && words.at(-1)!.replace(/[^A-Z]/g, '').length <= 2) words.pop();
   return words.length === 0 ? { kind: 'junk' } : { kind: 'name', text: words.join(' ') };
 }
 

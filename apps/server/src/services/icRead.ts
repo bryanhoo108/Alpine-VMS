@@ -8,26 +8,49 @@ import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { photos } from '../db/schema.js';
 import type { FileStore } from '../files.js';
 import { encryptIc } from '../icCrypto.js';
-import type { IcReader } from '../ocr.js';
+import type { IcReader, ReadArea } from '../ocr.js';
 import type { DbOrTx } from './audit.js';
 import type { ServiceDeps } from './deps.js';
 import { notFound, ServiceError } from './errors.js';
 import type { Site } from './sites.js';
 
 /**
- * Angles to try, in order, until a valid IC number is found: as taken,
- * upside down, then slightly turned either way. Most photos need one or two.
+ * Areas to read, in order, until a valid IC number is found: the left part
+ * of the card as taken, upside down, then slightly turned either way; then
+ * the whole photo. Most photos need one or two.
  */
-const ANGLES = [0, 180, -8, 8, 172, 188];
+const AREAS: ReadArea[] = [
+  { angle: 0, part: 0.62 },
+  { angle: 180, part: 0.62 },
+  { angle: -8, part: 0.62 },
+  { angle: 8, part: 0.62 },
+  // A card not inside the outline (or an older, uncropped photo).
+  { angle: 0, part: 1 },
+  { angle: -8, part: 1 },
+  { angle: 8, part: 1 },
+  { angle: 180, part: 1 },
+];
 
-export async function readUntilFound(reader: IcReader, image: Buffer): Promise<MyKadRead> {
+/**
+ * Stop trying after this long. Each try is about 1 s of CPU here; the free
+ * Render demo has a tenth of a CPU, so a few tries there take this long.
+ */
+export const READ_BUDGET_MS = 40_000;
+
+export async function readUntilFound(
+  reader: IcReader,
+  image: Buffer,
+  budgetMs = READ_BUDGET_MS,
+): Promise<MyKadRead> {
+  const until = Date.now() + budgetMs;
   let firstFound: MyKadRead | null = null;
-  for (const angle of ANGLES) {
-    const read = readMyKad(await reader.text(image, angle));
+  for (const area of AREAS) {
+    const read = readMyKad(await reader.text(image, area));
     if (read.icNumber && read.name) return read;
-    // Number but no name: one more angle may get the name too.
+    // Number but no name: one more try may get the name too.
     if (read.icNumber && firstFound) return firstFound;
     if (read.icNumber) firstFound = read;
+    if (Date.now() > until) break;
   }
   return firstFound ?? { icNumber: null, name: null };
 }

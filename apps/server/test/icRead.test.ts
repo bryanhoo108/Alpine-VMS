@@ -173,6 +173,31 @@ describe('reading the IC photo at the gate', () => {
   });
 });
 
+describe('reading tries', () => {
+  it('stops trying when the time is up, so a slow server never keeps the guard waiting', async () => {
+    const areas: number[] = [];
+    const slow = {
+      text: async (_img: Buffer, a: { angle: number }) => {
+        areas.push(a.angle);
+        await new Promise((r) => setTimeout(r, 30));
+        return 'nothing readable';
+      },
+      close: async () => {},
+    };
+    expect(await readUntilFound(slow, Buffer.from(''), 50)).toEqual({ icNumber: null, name: null });
+    expect(areas.length).toBe(2);
+  });
+
+  it('keeps trying for the name when the first try found only the number', async () => {
+    const texts = ['900101-14-5678\n12 JALAN', CARD_TEXT];
+    const reader = { text: async () => texts.shift() ?? '', close: async () => {} };
+    expect(await readUntilFound(reader, Buffer.from(''))).toEqual({
+      icNumber: '900101145678',
+      name: 'SAMPLE DRIVER BIN DEMO',
+    });
+  });
+});
+
 describe('Tesseract on this server (offline, bundled model)', () => {
   const fixture = (name: string) => readFile(new URL(`./fixtures/${name}`, import.meta.url));
   let reader: TesseractIcReader;
@@ -182,7 +207,7 @@ describe('Tesseract on this server (offline, bundled model)', () => {
   afterAll(() => reader.close());
 
   it('reads a fictional sample card', async () => {
-    const text = await reader.text(await fixture('sample-ic.jpg'), 0);
+    const text = await reader.text(await fixture('sample-ic.jpg'), { angle: 0, part: 1 });
     expect(readMyKad(text)).toEqual({ icNumber: '900101145678', name: 'SAMPLE DRIVER BIN DEMO' });
   }, 60_000);
 
