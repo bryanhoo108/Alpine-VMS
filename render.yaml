@@ -1,0 +1,36 @@
+# Render Blueprint: a DEMO link with sample data and mock SAP / CWIS / cameras.
+# Not for the real system, which runs on Alpine's own server (docs/INSTALL.md).
+#
+# Render dashboard: New → Blueprint → pick this repository → enter a demo PIN
+# and password when asked → Apply. See README "Demo link on Render".
+#
+# Free plan: the app sleeps after 15 minutes without visitors (about a minute
+# to wake) and the free database expires after 30 days.
+services:
+  - type: web
+    name: alpine-vms-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: '8080'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alpine-vms-demo-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      # Asked for when the Blueprint is applied; never stored in the repo.
+      - key: SEED_DEMO_PIN
+        sync: false
+      - key: SEED_DEMO_PASSWORD
+        sync: false
+
+databases:
+  - name: alpine-vms-demo-db
+    plan: free
+    databaseName: vms
+    user: vms
+    postgresMajorVersion: '16'
