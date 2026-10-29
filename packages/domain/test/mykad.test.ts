@@ -31,6 +31,27 @@ describe('reading a MyKad', () => {
     expect(readMyKad(text).name).toBe('NURUL ISLAM BINTI SHAH ALAM');
   });
 
+  it('skips junk lines from the photo box and stray marks at line ends', () => {
+    // As Tesseract read a glary sample photo.
+    const text = `KAD PENGENALAN MALAYSIA\nIDENTITY CARD\n880212-10-5521 |\n|\n|\nli |\nSAMPLE PERSON ONE\nBIN CONTOH _ el\n12 JALAN CONTOH 3`;
+    expect(readMyKad(text)).toEqual({
+      icNumber: '880212105521',
+      name: 'SAMPLE PERSON ONE BIN CONTOH',
+    });
+  });
+
+  it('keeps a mixed-case word of a real name, and repairs A/L read as AIL', () => {
+    const small = `910707-14-6632 | |\n| |\ni\n| Ny\nDEMO Woman I |\nBINT SAMPEL ee\n12 JALAN`;
+    expect(readMyKad(small).name).toBe('DEMO WOMAN BINT SAMPEL');
+    expect(readMyKad(`750430-08-1189\n1\n|\nTEST AIL RAMAN\n12 JALAN`).name).toBe('TEST A/L RAMAN');
+  });
+
+  it('keeps short name words in capitals (AH, NG) and @', () => {
+    expect(readMyKad(`690923-05-3016\nNG AH KOW @ SAMPLE\n3 JALAN`).name).toBe(
+      'NG AH KOW @ SAMPLE',
+    );
+  });
+
   it('gives the number without a name when the name is unreadable', () => {
     const text = `900101-14-5678\n12 JALAN CONTOH`;
     expect(readMyKad(text)).toEqual({ icNumber: '900101145678', name: null });

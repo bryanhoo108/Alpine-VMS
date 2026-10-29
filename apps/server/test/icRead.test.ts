@@ -6,6 +6,7 @@ import { auditLog, persons, photos, trips, visits } from '../src/db/schema.js';
 import { sampleCardNo } from '../src/db/seed.js';
 import { decryptIc, encryptIc } from '../src/icCrypto.js';
 import { TesseractIcReader } from '../src/ocr.js';
+import { readUntilFound } from '../src/services/icRead.js';
 import { purgeExpiredIcNumbers } from '../src/services/retention.js';
 import { createTestApp, type TestApp } from './helpers/testApp.js';
 
@@ -173,15 +174,28 @@ describe('reading the IC photo at the gate', () => {
 });
 
 describe('Tesseract on this server (offline, bundled model)', () => {
+  const fixture = (name: string) => readFile(new URL(`./fixtures/${name}`, import.meta.url));
+  let reader: TesseractIcReader;
+  beforeAll(() => {
+    reader = new TesseractIcReader();
+  });
+  afterAll(() => reader.close());
+
   it('reads a fictional sample card', async () => {
-    const reader = new TesseractIcReader();
-    try {
-      const text = await reader.text(
-        await readFile(new URL('./fixtures/sample-ic.jpg', import.meta.url)),
-      );
-      expect(readMyKad(text)).toEqual({ icNumber: '900101145678', name: 'SAMPLE DRIVER BIN DEMO' });
-    } finally {
-      await reader.close();
-    }
+    const text = await reader.text(await fixture('sample-ic.jpg'), 0);
+    expect(readMyKad(text)).toEqual({ icNumber: '900101145678', name: 'SAMPLE DRIVER BIN DEMO' });
   }, 60_000);
+
+  // Fictional cards photographed badly: these failed before the clean-up and retries.
+  it.each([
+    ['sample-ic-tilted.jpg', '910707146632', 'DEMO WOMAN BINTI SAMPEL'],
+    ['sample-ic-upside-down.jpg', '910707146632', 'DEMO WOMAN BINTI SAMPEL'],
+    ['sample-ic-small.jpg', '690923053016', 'LIM SAMPLE CHONG'],
+  ])(
+    'reads %s',
+    async (file, icNumber, name) => {
+      expect(await readUntilFound(reader, await fixture(file))).toEqual({ icNumber, name });
+    },
+    60_000,
+  );
 });

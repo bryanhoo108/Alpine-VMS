@@ -13,6 +13,8 @@ interface Props {
   icon: LucideIcon;
   badges: PhotoBadge[];
   onPhoto: (blob: Blob) => void;
+  /** Show a card-shaped outline: the IC read works best when the card fills it. */
+  cardGuide?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  * one photo. Falls back to the device camera app when live view is not
  * available. The shutter waits until frames arrive so no tap is lost.
  */
-export function PhotoCapture({ label, icon: Icon, badges, onPhoto }: Props) {
+export function PhotoCapture({ label, icon: Icon, badges, onPhoto, cardGuide = false }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [live, setLive] = useState<'starting' | 'on' | 'off'>('starting');
@@ -77,6 +79,17 @@ export function PhotoCapture({ label, icon: Icon, badges, onPhoto }: Props) {
         {live !== 'on' && (
           <div className="flex h-full items-center justify-center text-slate-300">
             <Camera className="size-20" />
+          </div>
+        )}
+        {cardGuide && live === 'on' && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div
+              data-testid="card-guide"
+              className="aspect-[85.6/54] max-h-[75%] w-4/5 max-w-full rounded-2xl border-4 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]"
+            />
+            <div className="rounded-lg bg-ink/70 px-3 py-1 text-xl font-bold text-white">
+              IC in box
+            </div>
           </div>
         )}
         {flash && <div className="absolute inset-0 bg-white/70" />}

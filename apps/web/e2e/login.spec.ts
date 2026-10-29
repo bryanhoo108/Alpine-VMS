@@ -9,6 +9,7 @@ test('guard signs in by tapping name and PIN; wrong PIN shows red dots', async (
   await page.goto('/');
   await expect(page.getByText('Tap your name')).toBeVisible();
   await expectGuardLayout(page);
+  await page.screenshot(shot('0-names'));
   await page.getByRole('button', { name: 'Entry Guard' }).click();
   for (const d of '0000') await page.getByRole('button', { name: d, exact: true }).click();
   await page.getByRole('button', { name: 'OK' }).click();

@@ -74,30 +74,59 @@ function findNumber(lines: string[]): { digits: string; line: number } | null {
 const NOT_NAME =
   /\b(KAD|PENGENALAN|MALAYSIA|IDENTITY|CARD|MYKAD|WARGANEGARA|LELAKI|PEREMPUAN|JALAN|JLN|TAMAN|TMN|LORONG|KAMPUNG|BLOK)\b/;
 
-function nameLine(line: string): string | null {
-  const t = line
-    .toUpperCase()
-    .replace(/[^A-Z@'/.\s-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (t.length < 3 || NOT_NAME.test(t)) return null;
-  // A name line is letters only; an address line has a house or postcode number.
-  if (/\d/.test(line)) return null;
-  return t;
+/**
+ * Words OCR makes out of the photo box and the card pattern: lower case, one
+ * letter, or with stray marks. Names on a MyKad are printed in capitals.
+ */
+function nameWords(line: string): string[] {
+  return (
+    line
+      .split(/\s+/)
+      .filter((w) => /^[A-Za-z@'/.-]+$/.test(w))
+      .filter((w) => w === '@' || w.replace(/[^A-Za-z]/g, '').length >= 2)
+      .filter((w) => !(/[a-z]/.test(w) && w.length <= 3))
+      .map((w) => w.toUpperCase())
+      // "A/L" and "A/P" (son of / daughter of) are often read as AIL, A1L, AIP.
+      .map((w) => w.replace(/^A[I1L|]([LP])$/, 'A/$1'))
+  );
 }
 
+type LineKind = { kind: 'name'; text: string } | { kind: 'junk' } | { kind: 'end' };
+
+function classify(line: string): LineKind {
+  // An address line has a house or postcode number ("12 JALAN", "40000 SHAH
+  // ALAM", "5 SAMPLE STREET"); card words end the name too. A lone digit is
+  // usually the photo box edge read as "1".
+  const digits = line.replace(/\D/g, '').length;
+  const hasWord = /[A-Za-z]{3,}/.test(line);
+  if (digits >= 2 || (digits === 1 && hasWord) || NOT_NAME.test(line.toUpperCase())) {
+    return { kind: 'end' };
+  }
+  const words = nameWords(line);
+  return words.length === 0 ? { kind: 'junk' } : { kind: 'name', text: words.join(' ') };
+}
+
+/** Junk lines (photo box, pattern) tolerated between the number and the name. */
+const MAX_JUNK_LINES = 10;
+
 /**
- * The name is printed right under the number, on one or two lines, before
- * the address (whose first line starts with a house number).
+ * The name is printed under the number, on one or two lines, before the
+ * address (whose first line starts with a house number). Junk lines from the
+ * photo box are skipped.
  */
 function findName(lines: string[], numberLine: number): string | null {
   const parts: string[] = [];
+  let junk = 0;
   for (let i = numberLine + 1; i < lines.length && parts.length < 2; i++) {
     const raw = lines[i]!.trim();
     if (raw === '') continue;
-    const n = nameLine(raw);
-    if (!n) break;
-    parts.push(n);
+    const line = classify(raw);
+    if (line.kind === 'end') break;
+    if (line.kind === 'junk') {
+      if (++junk > MAX_JUNK_LINES) break;
+      continue;
+    }
+    parts.push(line.text);
   }
   const name = parts.join(' ').trim();
   return name.length >= 3 ? name : null;
