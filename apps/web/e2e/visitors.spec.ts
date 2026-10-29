@@ -155,3 +155,116 @@ test.describe('gate in', () => {
     await expect(page.getByText('Waiting for truck')).toBeVisible({ timeout: 5000 });
   });
 });
+
+/** Gate a walk-in group in through the guard API; returns its card number. */
+async function walkInGroup(
+  page: Page,
+  name: string,
+  groupSize: number,
+  plate: string | null = null,
+) {
+  await page.goto('/');
+  await signInWithPin(page, 'Entry Guard');
+  const { cardNo } = await (await page.request.get('/api/dev/free-card')).json();
+  const res = await page.request.post('/api/gate/visit-in', {
+    data: {
+      inviteId: null,
+      type: 'contractor',
+      name,
+      company: 'Fixers Sdn Bhd',
+      phone: null,
+      hostId: null,
+      groupSize,
+      hostConfirmed: true,
+      plate,
+      plateReadId: null,
+      cardNo,
+      photoIds: [],
+    },
+  });
+  expect(res.ok(), await res.text()).toBe(true);
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  return cardNo as string;
+}
+
+async function exitGuard(page: Page) {
+  await signInWithPin(page, 'Exit Guard');
+  await page.getByRole('button', { name: 'Out', exact: true }).click();
+  await expect(page.getByText('Waiting for truck')).toBeVisible();
+}
+
+test.describe('gate out and muster', () => {
+  test('the group hands the card back: one tap, green OUT', async ({ page }) => {
+    const cardNo = await walkInGroup(page, 'Crane Crew', 4);
+    await exitGuard(page);
+    await expect(page.getByRole('button', { name: 'People (1)' })).toBeVisible();
+    await expectGuardLayout(page);
+    await page.keyboard.type(cardNo, { delay: 5 });
+    await page.keyboard.press('Enter');
+    const done = page.getByTestId('visit-out-done');
+    await expect(done).toContainText('Crane Crew');
+    await expect(done).toContainText('+ 3 people');
+    await expect(done).toHaveAttribute('data-level', 'green');
+    await expectGuardLayout(page);
+    await page.screenshot(shot('8-out'));
+  });
+
+  test('picked from the list, no card: two taps, red', async ({ page }) => {
+    await walkInGroup(page, 'Lost Card Crew', 2);
+    await exitGuard(page);
+    await page.getByRole('button', { name: 'People (1)' }).click();
+    await page
+      .getByRole('list', { name: 'People inside' })
+      .getByRole('button', { name: /Lost Card Crew/ })
+      .click();
+    await expect(page.getByTestId('exit-group')).toHaveText('2');
+    await expectGuardLayout(page);
+    await page.screenshot(shot('9-visit-exit'));
+    await page.getByRole('button', { name: 'No card' }).click();
+    await page.getByRole('button', { name: 'Yes, no card' }).click();
+    await expect(page.getByTestId('visit-out-done')).toHaveAttribute('data-level', 'red');
+  });
+
+  test('a visitor car at the exit camera: Visitor opens the group by its plate', async ({
+    page,
+  }) => {
+    await walkInGroup(page, 'Car Visitor', 1, 'WVX 2211');
+    await exitGuard(page);
+    await cameraSees(page, 'WVX 2211', 'exit');
+    await expect(page.getByText('Not inside')).toBeVisible();
+    await expectGuardLayout(page);
+    await page.getByRole('button', { name: 'Visitor' }).click();
+    await expect(page.getByText('Car Visitor')).toBeVisible();
+    await page.getByRole('button', { name: 'Test card' }).click();
+    await expect(page.getByTestId('visit-out-done')).toContainText('Car Visitor');
+  });
+
+  test('staff car at the exit: Staff logs it out', async ({ page }) => {
+    await exitGuard(page);
+    await cameraSees(page, 'WSF 8080', 'exit');
+    await expect(page.getByText('Not inside')).toBeVisible();
+    await page.getByRole('button', { name: 'Staff' }).click();
+    await expect(page.getByTestId('staff-done')).toContainText('WSF 8080');
+  });
+
+  test('supervisor sees the headcount and runs a muster', async ({ page }) => {
+    await walkInGroup(page, 'Muster Crew', 5);
+    await officeLogin(page, 'supervisor');
+    await expect(page.getByTestId('headcount')).toHaveText('5');
+    await page.getByRole('button', { name: 'Muster' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Muster' });
+    await dialog.getByRole('button', { name: 'Start roll call' }).click();
+    await expect(dialog.getByTestId('muster-count')).toHaveText('0 / 5 safe');
+    await expectNoSidewaysOverflow(page);
+    await page.screenshot(shot('10-muster'));
+    await dialog
+      .getByRole('list', { name: 'Not seen' })
+      .getByRole('button', { name: /Muster Crew/ })
+      .click();
+    await expect(dialog.getByTestId('muster-count')).toHaveText('5 / 5 safe');
+    await dialog.getByRole('button', { name: 'End muster' }).click();
+    await dialog.getByRole('button', { name: 'Yes, end' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Muster', exact: true })).toBeVisible();
+  });
+});

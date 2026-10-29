@@ -9,6 +9,7 @@ export type LiveEvent =
    * that happened while it was down was missed, so screens reload on it.
    */
   | { type: 'visit_changed'; visitId: string }
+  | { type: 'muster_changed'; musterId: string }
   | { type: 'connected' };
 
 /** Subscribe to server events; reconnects automatically (EventSource retry). */

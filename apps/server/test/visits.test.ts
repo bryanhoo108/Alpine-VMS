@@ -6,7 +6,7 @@ import { createTestApp, type TestApp } from './helpers/testApp.js';
 
 let h: TestApp;
 let guard: string;
-let card = 40;
+let card = 0;
 const nextCard = () => sampleCardNo(++card);
 
 beforeAll(async () => {
@@ -193,5 +193,134 @@ describe('staff plate log', () => {
     const [r] = await h.t.db.select().from(plateReads).where(eq(plateReads.id, read.id));
     expect(r!.handledAt).not.toBeNull();
     expect((await get('/api/gate/entry')).json().read).toBeNull();
+  });
+});
+
+describe('visitor gate out', () => {
+  const walkIn = async (name: string, groupSize = 1) => {
+    const cardNo = nextCard();
+    const body = (await visitIn({ name, groupSize, hostConfirmed: true, cardNo })).json();
+    return { id: body.visit.id as string, cardNo };
+  };
+
+  it('the card tap finds the group; handing it back frees the card: green', async () => {
+    const v = await walkIn('Leaver Green', 3);
+    // The truck card lookup says it is a visitor card, so the screen switches.
+    expect((await get(`/api/gate/exit/card/${v.cardNo}`)).json().error).toBe('CARD_ON_VISIT');
+    const found = (await get(`/api/gate/exit/visit-card/${v.cardNo}`)).json();
+    expect(found).toMatchObject({ id: v.id, name: 'Leaver Green', groupSize: 3 });
+    expect(found.status.level).toBe('green');
+
+    const out = await post('/api/gate/visit-out', {
+      visitId: v.id,
+      cardNo: v.cardNo,
+      plateReadId: null,
+    });
+    expect(out.json()).toMatchObject({ status: { level: 'green' }, cardReturned: true });
+    const [c] = await h.t.db.select().from(cards).where(eq(cards.cardNo, v.cardNo));
+    expect(c).toMatchObject({ status: 'free', currentVisitId: null });
+    expect(
+      (await post('/api/gate/visit-out', { visitId: v.id, cardNo: null, plateReadId: null })).json()
+        .error,
+    ).toBe('NOT_ON_SITE');
+  });
+
+  it("another group's card is refused", async () => {
+    const a = await walkIn('Group A');
+    const b = await walkIn('Group B');
+    const res = await post('/api/gate/visit-out', {
+      visitId: a.id,
+      cardNo: b.cardNo,
+      plateReadId: null,
+    });
+    expect(res.json().error).toBe('CARD_ON_OTHER_TRIP');
+  });
+
+  it('no card: red, the card is marked lost, the supervisor is alerted', async () => {
+    const v = await walkIn('Leaver No Card');
+    const out = (
+      await post('/api/gate/visit-out', { visitId: v.id, cardNo: null, plateReadId: null })
+    ).json();
+    expect(out.status.level).toBe('red');
+    const [c] = await h.t.db.select().from(cards).where(eq(cards.cardNo, v.cardNo));
+    expect(c!.status).toBe('lost');
+    const rows = await h.t.db.select().from(alerts).where(eq(alerts.visitId, v.id));
+    expect(rows.map((r) => r.type)).toEqual(['CARD_NOT_RETURNED']);
+  });
+
+  it('leaving well after the invite end time: amber "Stayed late"', async () => {
+    const clerk = await h.login('clerk');
+    const inv = await h.app.inject({
+      method: 'POST',
+      url: '/api/invites',
+      headers: { cookie: clerk },
+      payload: {
+        type: 'contractor',
+        name: 'Late Leaver',
+        company: null,
+        phone: null,
+        groupSize: 2,
+        hostId: await hostId('Plant Engineer'),
+        purpose: null,
+        validFrom: '2026-10-21',
+        validTo: '2026-10-21',
+        untilTime: '13:00',
+        plate: null,
+      },
+    });
+    const cardNo = nextCard();
+    const v = (await visitIn({ inviteId: inv.json().id, groupSize: 2, cardNo })).json().visit;
+    h.clock.now = new Date('2026-10-21T05:31:00Z'); // 13:31 local, 31 min past 13:00
+    expect((await get(`/api/gate/exit/visits/${v.id}`)).json().status.level).toBe('amber');
+    const out = (
+      await post('/api/gate/visit-out', { visitId: v.id, cardNo, plateReadId: null })
+    ).json();
+    expect(out.status.reasons.map((r: { type: string }) => r.type)).toEqual(['VISIT_OVERSTAY']);
+  });
+});
+
+describe('headcount and muster', () => {
+  it('counts truck drivers and visit groups; the roll is fixed when the muster starts', async () => {
+    const people = (await get('/api/people')).json();
+    const visitsInside = (await get('/api/gate/exit/people')).json();
+    const groupPeople = visitsInside.reduce(
+      (n: number, x: { groupSize: number }) => n + x.groupSize,
+      0,
+    );
+    expect(people.headcount.visitors + people.headcount.contractors).toBe(groupPeople);
+    expect(people.headcount.total).toBe(groupPeople + people.headcount.truckDrivers);
+
+    const started = await post('/api/muster/start', {});
+    expect(started.statusCode, started.body).toBe(200);
+    const m = started.json();
+    expect(m).toMatchObject({ people: people.headcount.total, safePeople: 0 });
+    // Starting again returns the same muster.
+    expect((await post('/api/muster/start', {})).json().id).toBe(m.id);
+
+    const first = m.roll[0];
+    const marked = (
+      await post(`/api/muster/${m.id}/mark`, { entryId: first.id, safe: true })
+    ).json();
+    expect(marked.safePeople).toBe(first.people);
+    expect(marked.roll[0].safe).toBe(true);
+
+    // Someone arriving now is not on this roll.
+    const late = (await visitIn({ name: 'After The Alarm', hostConfirmed: true })).json();
+    const view = (await get('/api/muster')).json();
+    expect(view.roll.map((e: { id: string }) => e.id)).not.toContain(late.visit.id);
+    expect(
+      (await post(`/api/muster/${m.id}/mark`, { entryId: late.visit.id, safe: true })).json().error,
+    ).toBe('NOT_ON_ROLL');
+
+    // Untick, end, then marking is refused and there is no current muster.
+    expect(
+      (await post(`/api/muster/${m.id}/mark`, { entryId: first.id, safe: false })).json()
+        .safePeople,
+    ).toBe(0);
+    expect((await post(`/api/muster/${m.id}/end`, {})).json()).toEqual({ ok: true });
+    expect(
+      (await post(`/api/muster/${m.id}/mark`, { entryId: first.id, safe: true })).json().error,
+    ).toBe('MUSTER_ENDED');
+    expect((await get('/api/muster')).body).toBe('null');
   });
 });

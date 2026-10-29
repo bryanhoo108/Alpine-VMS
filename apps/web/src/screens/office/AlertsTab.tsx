@@ -30,6 +30,7 @@ export function AlertsTab({
               {a.plate && (
                 <span className="font-mono text-lg font-black">{formatPlate(a.plate)}</span>
               )}
+              {a.visitName && <span className="text-lg font-black">{a.visitName}</span>}
               {a.tripNo && <span className="text-muted">{a.tripNo}</span>}
               <span className="text-sm text-muted">{dateTimeOf(a.raisedAt)}</span>
               {a.detail && (

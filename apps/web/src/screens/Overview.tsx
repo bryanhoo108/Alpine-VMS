@@ -10,16 +10,21 @@ import {
   Clock,
   FastForward,
   FlaskConical,
+  HardHat,
   LogIn,
   LogOut,
   PackageOpen,
   Play,
   RotateCcw,
+  Siren,
   Square,
   Truck,
+  UserRound,
+  UsersRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Overview as OverviewData, type Stage } from '../api';
+import { api, type Overview as OverviewData, type People, type Stage } from '../api';
+import { MusterPanel } from '../components/MusterPanel';
 import { TimelineDialog } from '../components/Timeline';
 import { dateTimeOf } from '../format';
 import { useLiveEvents } from '../hooks/useLiveEvents';
@@ -57,11 +62,22 @@ const hm = (minutes: number | null) =>
 export function Overview({ demoControls }: { demoControls: boolean }) {
   const [data, setData] = useState<OverviewData | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [people, setPeople] = useState<People | null>(null);
+  const [muster, setMuster] = useState(false);
+  const [musterOn, setMusterOn] = useState(false);
 
   const load = useCallback(() => {
     api
       .get<OverviewData>('/api/overview')
       .then(setData)
+      .catch(() => undefined);
+    api
+      .get<People>('/api/people')
+      .then(setPeople)
+      .catch(() => undefined);
+    api
+      .get<unknown>('/api/muster')
+      .then((m) => setMusterOn(m !== null))
       .catch(() => undefined);
   }, []);
   useEffect(() => {
@@ -71,7 +87,15 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
     return () => clearInterval(id);
   }, [load]);
   useLiveEvents((e) => {
-    if (e.type === 'trip_changed' || e.type === 'alert' || e.type === 'connected') load();
+    if (
+      e.type === 'trip_changed' ||
+      e.type === 'visit_changed' ||
+      e.type === 'muster_changed' ||
+      e.type === 'alert' ||
+      e.type === 'connected'
+    ) {
+      load();
+    }
   });
 
   if (!data)
@@ -84,6 +108,39 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
     <div className="h-full overflow-y-auto" data-testid="overview">
       <div className="flex flex-col gap-3">
         {demoControls && <DemoBar onChanged={load} />}
+
+        {people && (
+          <section
+            className="flex flex-wrap items-center gap-3 rounded-2xl bg-panel p-3 shadow-sm"
+            aria-label="People on site"
+          >
+            <UsersRound className="size-8 text-muted" />
+            <div>
+              <div className="text-sm font-bold uppercase text-muted">People on site</div>
+              <div className="text-3xl font-black tabular-nums" data-testid="headcount">
+                {people.headcount.total}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-lg">
+              <span className="flex items-center gap-1">
+                <Truck className="size-5 text-muted" /> {people.headcount.truckDrivers} drivers
+              </span>
+              <span className="flex items-center gap-1">
+                <UserRound className="size-5 text-muted" /> {people.headcount.visitors} visitors
+              </span>
+              <span className="flex items-center gap-1">
+                <HardHat className="size-5 text-muted" /> {people.headcount.contractors} contractors
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMuster(true)}
+              className={`ml-auto flex min-h-12 items-center gap-2 rounded-xl px-5 text-lg font-black text-white ${musterOn ? 'animate-pulse bg-bad' : 'bg-bad'}`}
+            >
+              <Siren className="size-6" /> {musterOn ? 'Muster on' : 'Muster'}
+            </button>
+          </section>
+        )}
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-5" aria-label="Today">
           <Kpi icon={Truck} label="Inside now" value={t.inside} />
@@ -235,6 +292,14 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
           </div>
         </div>
       </div>
+      {muster && (
+        <MusterPanel
+          onClose={() => {
+            setMuster(false);
+            load();
+          }}
+        />
+      )}
       {open && <TimelineDialog tripId={open} onClose={() => setOpen(null)} />}
     </div>
   );

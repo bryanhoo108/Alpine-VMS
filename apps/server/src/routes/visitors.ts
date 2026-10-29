@@ -13,7 +13,21 @@ import {
   type NewHost,
   type NewInvite,
 } from '../services/invites.js';
-import { logStaff, visitGateIn, type VisitGateInInput } from '../services/visits.js';
+import {
+  currentMuster,
+  endMuster,
+  logStaff,
+  markMuster,
+  peopleOnSite,
+  startMuster,
+  visitExitByCard,
+  visitExitById,
+  visitGateIn,
+  visitGateOut,
+  visitsOnSite,
+  type VisitGateInInput,
+  type VisitGateOutInput,
+} from '../services/visits.js';
 
 const uuid = { type: 'string', format: 'uuid' } as const;
 const idParams = { type: 'object', required: ['id'], properties: { id: uuid } } as const;
@@ -211,5 +225,84 @@ export const visitorRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) =>
       },
     },
     (req) => logStaff(ctx, ctx.site, currentUser(req).id, req.body),
+  );
+
+  // --- Gate out for visitors and contractors ---
+  const cardParams = {
+    type: 'object',
+    required: ['cardNo'],
+    properties: { cardNo: { type: 'string', minLength: 1, maxLength: 64 } },
+  } as const;
+
+  app.get('/api/gate/exit/people', gate, () => visitsOnSite(ctx, ctx.site));
+
+  app.get<{ Params: { id: string } }>(
+    '/api/gate/exit/visits/:id',
+    { ...gate, schema: { params: idParams } },
+    (req) => visitExitById(ctx, ctx.site, req.params.id),
+  );
+
+  app.get<{ Params: { cardNo: string } }>(
+    '/api/gate/exit/visit-card/:cardNo',
+    { ...gate, schema: { params: cardParams } },
+    (req) => visitExitByCard(ctx, ctx.site, req.params.cardNo),
+  );
+
+  app.post<{ Body: VisitGateOutInput }>(
+    '/api/gate/visit-out',
+    {
+      ...gate,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['visitId', 'cardNo', 'plateReadId'],
+          additionalProperties: false,
+          properties: {
+            visitId: uuid,
+            cardNo: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
+            plateReadId: { type: ['string', 'null'], format: 'uuid' },
+          },
+        },
+      },
+    },
+    (req) => visitGateOut(ctx, ctx.site, currentUser(req).id, req.body),
+  );
+
+  // --- Headcount and muster: anyone signed in can start or help with a roll call ---
+  const anyone = { preHandler: requireRole() };
+
+  app.get('/api/people', anyone, () => peopleOnSite(ctx, ctx.site));
+  app.get('/api/muster', anyone, () => currentMuster(ctx, ctx.site));
+  app.post('/api/muster/start', anyone, (req) => startMuster(ctx, ctx.site, currentUser(req).id));
+
+  app.post<{ Params: { id: string }; Body: { entryId: string; safe: boolean } }>(
+    '/api/muster/:id/mark',
+    {
+      ...anyone,
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          required: ['entryId', 'safe'],
+          additionalProperties: false,
+          properties: { entryId: uuid, safe: { type: 'boolean' } },
+        },
+      },
+    },
+    (req) =>
+      markMuster(
+        ctx,
+        ctx.site,
+        currentUser(req).id,
+        req.params.id,
+        req.body.entryId,
+        req.body.safe,
+      ),
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/muster/:id/end',
+    { ...anyone, schema: { params: idParams } },
+    (req) => endMuster(ctx, ctx.site, currentUser(req).id, req.params.id),
   );
 };
