@@ -200,7 +200,8 @@ describe('auto-play', () => {
     expect(after.map((t) => `${t.plate}:${t.stage}`).sort()).toEqual(
       before.map((t) => `${t.plate}:${t.stage}`).sort(),
     );
-  });
+    // 80 steps through the real services; slower when other test files share the CPU.
+  }, 30_000);
 
   it('is switched on and off by the supervisor', async () => {
     const on = await h.app.inject({

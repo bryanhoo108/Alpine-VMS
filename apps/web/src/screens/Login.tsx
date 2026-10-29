@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardCheck, KeyRound, Shield } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ClipboardCheck, KeyRound, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api, ApiError, type Me, type Person } from '../api';
 import { BigButton } from '../components/BigButton';
@@ -55,11 +55,16 @@ export function Login({ onLogin }: { onLogin: (me: Me) => void }) {
           onClick={() => setOffice(true)}
         />
       </section>
-      <section className="flex min-h-0 flex-1 flex-col">
+      {/* Phone: the names fill the screen until one is picked; then the PIN pad shows. */}
+      <section
+        className={`flex min-h-0 flex-col ${who ? 'flex-1' : 'portrait:flex-none landscape:flex-1'}`}
+      >
         {who ? (
           <PinPad error={error} onSubmit={(pin) => login(who.username, pin)} />
         ) : (
-          <div className="flex flex-1 items-center justify-center rounded-2xl bg-panel text-2xl font-bold text-muted">
+          <div className="flex items-center justify-center gap-2 rounded-2xl text-2xl font-bold text-muted landscape:flex-1 landscape:bg-panel portrait:py-2">
+            <ArrowUp className="size-7 landscape:hidden" />
+            <ArrowLeft className="size-7 portrait:hidden" />
             Tap your name
           </div>
         )}

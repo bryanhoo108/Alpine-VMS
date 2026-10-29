@@ -470,6 +470,7 @@ export function GateIn({ mock }: { mock: boolean }) {
         left={
           <PhotoCapture
             label={step === 'ic' ? 'IC' : 'Documents'}
+            cardGuide={step === 'ic'}
             icon={step === 'ic' ? IdCard : FileText}
             badges={[
               { icon: IdCard, count: photos.ic, testId: 'count-ic' },

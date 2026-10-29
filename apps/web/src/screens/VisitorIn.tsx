@@ -349,6 +349,7 @@ export function VisitorIn({
           <PhotoCapture
             label="IC"
             icon={IdCard}
+            cardGuide
             badges={[{ icon: IdCard, count: photos, testId: 'count-ic' }]}
             onPhoto={onPhoto}
           />
