@@ -121,8 +121,11 @@ test('alerts tab shows red first and clears with a reason', async ({ page }) => 
   await expect(page.getByText('No open alerts.')).toBeVisible();
 });
 
-test('supervisor switches between Office, Check, Gate Out and Gate In', async ({ page }) => {
+test('supervisor switches between Live, Office, Check, Gate Out and Gate In', async ({ page }) => {
   await officeLogin(page, 'supervisor');
+  // Supervisor starts on the Live overview.
+  await expect(page.getByTestId('overview')).toBeVisible();
+  await page.getByRole('button', { name: 'Office', pressed: false }).click();
   await expect(page.getByRole('heading', { name: 'Office' })).toBeVisible();
   await expectNoSidewaysOverflow(page);
   await page.screenshot(shot('5-supervisor'));

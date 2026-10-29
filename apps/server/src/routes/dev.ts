@@ -16,14 +16,51 @@ import { requireRole } from '../auth/session.js';
 import { cards, trips, weighTickets } from '../db/schema.js';
 import { pollCwisTickets, sendCwisPushes } from '../services/cwis.js';
 import { discoverDos } from '../services/dos.js';
+import { buildDemoDay } from '../demo/scenario.js';
 import { conflict, notFound } from '../services/errors.js';
 
-interface DevContext extends AppContext {
+export interface DevContext extends AppContext {
   mocks: { lpr: MockLprAdapter; cwis: MockCwisAdapter; sap: MockSapAdapter };
 }
 
-export const devRoutes: FastifyPluginAsync<DevContext> = async (app, ctx) => {
-  app.get('/api/dev', async () => ({ mock: true, samplePlates: SAMPLE_PLATES }));
+/**
+ * Registered with { ctx } holding the live app context (not a copy), so the
+ * job runner and auto-play set up after registration are visible here.
+ */
+export const devRoutes: FastifyPluginAsync<{ ctx: DevContext }> = async (app, { ctx }) => {
+  app.get('/api/dev', async () => ({
+    mock: true,
+    samplePlates: SAMPLE_PLATES,
+    autoplay: ctx.autoplay?.running ?? false,
+  }));
+
+  /** Demo controls (supervisor): rebuild the busy sample day; auto-play on or off. */
+  const demoAdmin = { preHandler: requireRole('supervisor') };
+
+  app.post('/api/dev/demo/reset', demoAdmin, async () => {
+    const wasPlaying = ctx.autoplay?.running ?? false;
+    ctx.autoplay?.stop();
+    const built = await buildDemoDay(ctx, (m) => app.log.info(m));
+    if (wasPlaying) ctx.autoplay?.start();
+    if (!built) throw conflict('NO_DEMO_USERS');
+    return { ok: true };
+  });
+
+  app.post<{ Body: { on: boolean } }>(
+    '/api/dev/demo/autoplay',
+    {
+      ...demoAdmin,
+      schema: {
+        body: { type: 'object', required: ['on'], properties: { on: { type: 'boolean' } } },
+      },
+    },
+    async (req) => {
+      if (!ctx.autoplay) throw conflict('NO_AUTOPLAY');
+      if (req.body.on) ctx.autoplay.start();
+      else ctx.autoplay.stop();
+      return { autoplay: ctx.autoplay.running };
+    },
+  );
 
   app.post<{ Body: { camera: 'entry' | 'exit'; plate: string; confidence?: number } }>(
     '/api/dev/lpr',

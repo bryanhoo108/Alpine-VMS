@@ -61,6 +61,23 @@ export async function seed(db: Db, sap: SapAdapter, opts: SeedOptions): Promise<
     )
     .onConflictDoNothing();
 
+  await seedSampleData(db, sap, site.id, opts.now);
+}
+
+/**
+ * Sample data that does not touch users: card pool, transporters from SAP,
+ * pre-registrations and a watchlist entry. Safe to run again; the demo day
+ * reset calls it after clearing trips.
+ */
+export async function seedSampleData(
+  db: Db,
+  sap: SapAdapter,
+  siteId: string,
+  now: Date,
+): Promise<void> {
+  const [site] = await db.select().from(sites).where(eq(sites.id, siteId));
+  if (!site) throw new Error('site missing');
+
   await db
     .insert(cards)
     .values(
@@ -81,7 +98,7 @@ export async function seed(db: Db, sap: SapAdapter, opts: SeedOptions): Promise<
     .where(eq(transporters.sapBpCode, 'T0001'));
   if (!clerk || !supervisor || !transporter) throw new Error('demo users or transporters missing');
 
-  const today = siteDate(opts.now, site.timezone);
+  const today = siteDate(now, site.timezone);
   const [preRegCount] = await db
     .select({ n: count() })
     .from(preRegistrations)

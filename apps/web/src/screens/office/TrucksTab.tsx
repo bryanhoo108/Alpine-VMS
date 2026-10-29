@@ -22,6 +22,7 @@ import {
 } from '../../api';
 import { dateTimeOf, linesSummary, timeOf } from '../../format';
 import { formatPlate } from '../../plate';
+import { TripTimeline } from '../../components/Timeline';
 import { DosCard } from './DosCard';
 import { Button, Card, Chip, inputClass, ReasonForm } from './ui';
 
@@ -37,22 +38,51 @@ interface Props {
 export function TrucksTab({ trips, lists, tick, mock, onChanged }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [onlyUnmatched, setOnlyUnmatched] = useState(false);
-  const shown = onlyUnmatched
-    ? trips.filter((t) => t.type === 'outbound' && !t.stage.matched)
-    : trips;
+  const [scope, setScope] = useState<'inside' | 'left'>('inside');
+  const [left, setLeft] = useState<TripSummary[]>([]);
+  useEffect(() => {
+    if (scope !== 'left') return;
+    api
+      .get<TripSummary[]>('/api/clerk/trips?scope=left_today')
+      .then(setLeft)
+      .catch(() => setLeft([]));
+  }, [scope, tick]);
+  const list = scope === 'inside' ? trips : left;
+  const shown =
+    scope === 'inside' && onlyUnmatched
+      ? list.filter((t) => t.type === 'outbound' && !t.stage.matched)
+      : list;
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(320px,2fr)_minmax(0,5fr)]">
       <div className={`flex min-h-0 flex-col gap-2 ${selected ? 'max-lg:hidden' : ''}`}>
-        <label className="flex min-h-11 items-center gap-2 rounded-xl bg-panel px-3 font-semibold">
-          <input
-            type="checkbox"
-            className="size-5"
-            checked={onlyUnmatched}
-            onChange={(e) => setOnlyUnmatched(e.target.checked)}
-          />
-          Not matched only
-        </label>
+        <div className="flex gap-2" role="group" aria-label="Which trucks">
+          {(['inside', 'left'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={scope === s}
+              onClick={() => {
+                setScope(s);
+                setSelected(null);
+              }}
+              className={`min-h-11 flex-1 rounded-xl px-3 font-bold ${scope === s ? 'bg-ink text-white' : 'bg-panel'}`}
+            >
+              {s === 'inside' ? `Inside (${trips.length})` : 'Left today'}
+            </button>
+          ))}
+        </div>
+        {scope === 'inside' && (
+          <label className="flex min-h-11 items-center gap-2 rounded-xl bg-panel px-3 font-semibold">
+            <input
+              type="checkbox"
+              className="size-5"
+              checked={onlyUnmatched}
+              onChange={(e) => setOnlyUnmatched(e.target.checked)}
+            />
+            Not matched only
+          </label>
+        )}
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" aria-label="Trucks on site">
           {shown.length === 0 && <li className="rounded-xl bg-panel p-4 text-muted">No trucks.</li>}
           {shown.map((t) => (
@@ -69,12 +99,30 @@ export function TrucksTab({ trips, lists, tick, mock, onChanged }: Props) {
                     <PackageOpen className="size-5" />
                   )}
                   <span className="font-mono text-xl font-black">{formatPlate(t.plate)}</span>
-                  <span className="ml-auto text-sm text-muted">{timeOf(t.gateInAt)}</span>
+                  <span className="ml-auto text-sm text-muted">
+                    {t.gateOutAt
+                      ? `${timeOf(t.gateInAt)}–${timeOf(t.gateOutAt)}`
+                      : timeOf(t.gateInAt)}
+                  </span>
                 </div>
                 <div className="truncate text-sm text-muted">
                   {t.tripNo} · {t.transporterName ?? 'Company not set'}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1">
+                  {t.exitLevel && (
+                    <Chip
+                      tone={
+                        t.exitLevel === 'green' ? 'ok' : t.exitLevel === 'amber' ? 'warn' : 'bad'
+                      }
+                    >
+                      Out{' '}
+                      {t.exitLevel === 'green'
+                        ? 'OK'
+                        : t.exitLevel === 'amber'
+                          ? 'with checks'
+                          : 'with problems'}
+                    </Chip>
+                  )}
                   {t.type === 'outbound' &&
                     (t.stage.matched ? (
                       <Chip tone="ok">SDO {t.sdoNos.join(', ')}</Chip>
@@ -192,6 +240,8 @@ function TripPanel({
 
   if (!trip) return <div className="rounded-2xl bg-panel p-6">{error ?? 'Loading…'}</div>;
   const outbound = trip.type === 'outbound';
+  // A truck that has left: everything is history, nothing to change.
+  const closed = trip.status === 'closed';
 
   return (
     <div className="space-y-3" data-testid="trip-panel">
@@ -218,36 +268,49 @@ function TripPanel({
             {error}
           </p>
         )}
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2">
-          <label className="flex flex-col gap-1 font-semibold">
-            Company
-            <select
-              className={`${inputClass} w-full min-w-0`}
-              value={trip.transporterId ?? ''}
-              onChange={(e) =>
-                act(() =>
-                  api.put(`/api/clerk/trips/${trip.id}/transporter`, {
-                    transporterId: e.target.value || null,
-                  }),
-                )
+        {closed ? (
+          <p className="mt-2 text-lg">
+            {trip.transporterName ?? 'Company not set'}
+            {trip.driver?.name
+              ? ` · driver ${trip.driver.name}${trip.driver.icLast4 ? ` (IC …${trip.driver.icLast4})` : ''}`
+              : ''}
+          </p>
+        ) : (
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1 font-semibold">
+              Company
+              <select
+                className={`${inputClass} w-full min-w-0`}
+                value={trip.transporterId ?? ''}
+                onChange={(e) =>
+                  act(() =>
+                    api.put(`/api/clerk/trips/${trip.id}/transporter`, {
+                      transporterId: e.target.value || null,
+                    }),
+                  )
+                }
+              >
+                <option value="">Not set</option>
+                {lists?.transporters.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <DriverForm
+              trip={trip}
+              onSave={(name, icLast4) =>
+                act(() => api.put(`/api/clerk/trips/${trip.id}/driver`, { name, icLast4 }))
               }
-            >
-              <option value="">Not set</option>
-              {lists?.transporters.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <DriverForm
-            trip={trip}
-            onSave={(name, icLast4) =>
-              act(() => api.put(`/api/clerk/trips/${trip.id}/driver`, { name, icLast4 }))
-            }
-          />
-        </div>
+            />
+          </div>
+        )}
       </section>
+
+      <Card title="Timeline">
+        <TripTimeline tripId={trip.id} tick={tick} />
+      </Card>
 
       {trip.photos.length > 0 && (
         <Card title="Gate photos">
@@ -293,16 +356,18 @@ function TripPanel({
                   <Chip tone="off">
                     {s.source === 'clerk' ? 'Matched by clerk' : 'Pre-registered'}
                   </Chip>
-                  <Button
-                    tone="danger"
-                    className="ml-auto"
-                    aria-label={`Remove SDO ${s.sdoNo}`}
-                    onClick={() =>
-                      act(() => api.del(`/api/clerk/trips/${trip.id}/sdos/${s.sdoNo}`))
-                    }
-                  >
-                    <Trash2 className="size-5" /> Remove
-                  </Button>
+                  {!closed && (
+                    <Button
+                      tone="danger"
+                      className="ml-auto"
+                      aria-label={`Remove SDO ${s.sdoNo}`}
+                      onClick={() =>
+                        act(() => api.del(`/api/clerk/trips/${trip.id}/sdos/${s.sdoNo}`))
+                      }
+                    >
+                      <Trash2 className="size-5" /> Remove
+                    </Button>
+                  )}
                 </div>
                 <LinesTable lines={s.lines} />
               </div>
@@ -311,7 +376,7 @@ function TripPanel({
         </Card>
       )}
 
-      {outbound && (
+      {outbound && !closed && (
         <Card
           title="Add SDO"
           actions={
@@ -367,12 +432,13 @@ function TripPanel({
         </Card>
       )}
 
-      {outbound && <DosCard trip={trip} mock={mock} act={act} />}
+      {outbound && <DosCard trip={trip} mock={mock && !closed} readOnly={closed} act={act} />}
 
       <Card
         title="Weighbridge (CWIS)"
         actions={
-          mock && (
+          mock &&
+          !closed && (
             <WeighbridgeTest
               tripId={trip.id}
               plate={trip.plate}

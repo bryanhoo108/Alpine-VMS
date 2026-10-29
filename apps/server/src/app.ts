@@ -12,7 +12,9 @@ import { defineJobs, startJobs, type JobRunner } from './jobs.js';
 import { authRoutes } from './routes/auth.js';
 import { checkerRoutes } from './routes/checker.js';
 import { clerkRoutes } from './routes/clerk.js';
-import { devRoutes } from './routes/dev.js';
+import { AutoPlay } from './demo/autoplay.js';
+import { buildDemoDay } from './demo/scenario.js';
+import { devRoutes, type DevContext } from './routes/dev.js';
 import { eventRoutes } from './routes/events.js';
 import { gateRoutes } from './routes/gate.js';
 import { healthRoutes } from './routes/health.js';
@@ -29,6 +31,8 @@ export interface AppDeps {
   now?: () => Date;
   /** Run background jobs (SAP/CWIS sync). Off in tests, which call services directly. */
   jobs?: boolean;
+  /** Demo with mock adapters: build the busy sample day on start; start auto-play. */
+  demo?: { day: boolean; autoplay: boolean };
 }
 
 /** Everything routes and services need, built once at start. */
@@ -38,6 +42,8 @@ export interface AppContext extends AppDeps {
   files: FileStore;
   now: () => Date;
   jobRunner: JobRunner | null;
+  /** Demo auto-play (mock adapters only). */
+  autoplay: AutoPlay | null;
 }
 
 export async function buildApp(
@@ -68,6 +74,7 @@ export async function buildApp(
     files: new FileStore(deps.config.filesDir),
     now: deps.now ?? (() => new Date()),
     jobRunner: null,
+    autoplay: null,
   };
 
   app.setErrorHandler((err: Error & { validation?: unknown; statusCode?: number }, _req, reply) => {
@@ -98,11 +105,27 @@ export async function buildApp(
   await app.register(clerkRoutes, ctx);
   await app.register(checkerRoutes, ctx);
   const { lpr, cwis, sap } = deps.adapters.mocks;
-  if (lpr && cwis && sap) await app.register(devRoutes, { ...ctx, mocks: { lpr, cwis, sap } });
+  const demo: DevContext | null =
+    lpr && cwis && sap ? Object.assign(ctx, { mocks: { lpr, cwis, sap } }) : null;
+  if (demo) await app.register(devRoutes, { ctx: demo });
+
+  if (demo && deps.demo?.day) {
+    try {
+      await buildDemoDay(demo, (m) => app.log.info(m));
+    } catch (err) {
+      app.log.error(err, 'demo day could not be built');
+    }
+  }
 
   if (deps.jobs) {
     ctx.jobRunner = startJobs(defineJobs(ctx, site), ctx.events, app.log);
     app.addHook('onClose', async () => ctx.jobRunner?.stop());
+  }
+
+  if (demo) {
+    ctx.autoplay = new AutoPlay(demo, 20_000, Math.random, (m) => app.log.warn(m));
+    if (deps.demo?.autoplay) ctx.autoplay.start();
+    app.addHook('onClose', async () => ctx.autoplay?.stop());
   }
 
   // Camera reads arrive from the LPR adapter (webhook for real cameras, dev panel for the mock).

@@ -30,7 +30,7 @@ export function Shell({
   }, []);
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <header className="flex h-14 shrink-0 items-center gap-3 bg-ink px-4 text-white">
+      <header className="flex h-14 shrink-0 items-center gap-3 bg-ink px-4 text-white max-sm:gap-1 max-sm:px-2">
         {/* With a switcher, the pressed button already names the screen. */}
         <h1 className={nav ? 'sr-only' : 'text-2xl font-extrabold'}>{title}</h1>
         {nav && (
@@ -41,7 +41,7 @@ export function Shell({
                 type="button"
                 onClick={n.onClick}
                 aria-pressed={n.active}
-                className={`min-h-11 min-w-14 whitespace-nowrap rounded-lg px-3 font-bold ${n.active ? 'bg-white text-ink' : 'text-white/80 active:bg-slate-700'}`}
+                className={`min-h-11 min-w-12 whitespace-nowrap rounded-lg px-2 font-bold sm:min-w-14 sm:px-3 ${n.active ? 'bg-white text-ink' : 'text-white/80 active:bg-slate-700'}`}
               >
                 {n.label}
               </button>
@@ -57,7 +57,7 @@ export function Shell({
           type="button"
           aria-label="Sign out"
           onClick={onLogout}
-          className="flex size-11 items-center justify-center rounded-lg active:bg-slate-700"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg active:bg-slate-700"
         >
           <LogOut className="size-7" />
         </button>

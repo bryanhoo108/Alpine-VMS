@@ -8,6 +8,7 @@ import { sdoVersion } from '@vms/domain';
 import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { sdoCache, sdoLines, tripSdos, type SdoLineSnapshot } from '../db/schema.js';
 import type { DbOrTx } from './audit.js';
+import { OVERLAP_MS } from './cwis.js';
 import type { ServiceDeps } from './deps.js';
 import type { Site } from './sites.js';
 
@@ -54,7 +55,10 @@ export async function refreshSdoCache(
       .limit(1);
     since = newest?.at;
   }
-  const sdos = await deps.adapters.sap.listOpenSdos(since ? { updatedSince: since } : {});
+  // Overlap by a second so an SDO changed in the same second is not missed.
+  const sdos = await deps.adapters.sap.listOpenSdos(
+    since ? { updatedSince: new Date(since.getTime() - OVERLAP_MS) } : {},
+  );
 
   let closed = 0;
   await db.transaction(async (tx) => {

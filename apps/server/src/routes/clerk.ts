@@ -18,6 +18,8 @@ import {
 } from '../services/clerk.js';
 import { unlinkedTickets } from '../services/cwis.js';
 import { linkDo, unlinkDo } from '../services/dos.js';
+import { overview } from '../services/overview.js';
+import { tripTimeline } from '../services/timeline.js';
 
 const uuid = { type: 'string', format: 'uuid' } as const;
 const idParams = { type: 'object', required: ['id'], properties: { id: uuid } } as const;
@@ -32,7 +34,27 @@ const sdoNo = { type: 'string', minLength: 1, maxLength: 20 } as const;
 export const clerkRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
   const office = { preHandler: requireRole('clerk', 'supervisor') };
 
-  app.get('/api/clerk/trips', office, () => tripsOnSite(ctx, ctx.site));
+  app.get<{ Querystring: { scope?: 'inside' | 'left_today' } }>(
+    '/api/clerk/trips',
+    {
+      ...office,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: { scope: { type: 'string', enum: ['inside', 'left_today'] } },
+        },
+      },
+    },
+    (req) => tripsOnSite(ctx, ctx.site, req.query.scope ?? 'inside'),
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/api/trips/:id/timeline',
+    { ...office, schema: { params: idParams } },
+    (req) => tripTimeline(ctx.db, ctx.site, req.params.id),
+  );
+
+  app.get('/api/overview', office, () => overview(ctx, ctx.site));
   app.get('/api/clerk/lists', office, () => clerkLists(ctx, ctx.site));
   app.get('/api/clerk/tickets/unlinked', office, () => unlinkedTickets(ctx.db, ctx.site.id));
 

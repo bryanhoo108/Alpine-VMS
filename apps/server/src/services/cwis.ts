@@ -121,6 +121,9 @@ export async function sendCwisPushes(deps: ServiceDeps, site: Site, limit = 50):
 
 // --- Read-back (CWIS → VMS) ---------------------------------------------------
 
+/** Each incremental read overlaps the previous one by this much. */
+export const OVERLAP_MS = 1000;
+
 /** Unlinked tickets younger than this are retried against trips on site. */
 export const RELINK_HOURS = 24;
 
@@ -159,7 +162,11 @@ export async function pollCwisTickets(deps: ServiceDeps, site: Site): Promise<st
     .where(eq(weighTickets.siteId, site.id))
     .orderBy(desc(weighTickets.cwisUpdatedAt))
     .limit(1);
-  const tickets = await deps.adapters.cwis.listTickets(last ? { updatedSince: last.at } : {});
+  // Ask again from a second before the newest stored ticket: a ticket saved in
+  // that same second (CWIS keeps seconds) must not be missed. Repeats are harmless.
+  const tickets = await deps.adapters.cwis.listTickets(
+    last ? { updatedSince: new Date(last.at.getTime() - OVERLAP_MS) } : {},
+  );
 
   const changed = new Set<string>();
   const newAlerts: { row: AlertRow; tripNo: string; plate: string }[] = [];

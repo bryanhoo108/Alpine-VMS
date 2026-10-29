@@ -56,6 +56,8 @@ export interface TripSummary {
   plate: string;
   transporterName: string | null;
   gateInAt: Date;
+  gateOutAt: Date | null;
+  exitLevel: 'green' | 'amber' | 'red' | null;
   preAdvised: boolean;
   sdoNos: string[];
   stage: {
@@ -68,8 +70,14 @@ export interface TripSummary {
   alertLevel: 'red' | 'amber' | null;
 }
 
-export async function tripsOnSite(deps: ServiceDeps, site: Site): Promise<TripSummary[]> {
+/** Trucks inside now, or trucks that left today (site-local day), with their stage. */
+export async function tripsOnSite(
+  deps: ServiceDeps,
+  site: Site,
+  scope: 'inside' | 'left_today' = 'inside',
+): Promise<TripSummary[]> {
   const { db } = deps;
+  const today = siteDate(deps.now(), site.timezone);
   const rows = await db
     .select({
       id: trips.id,
@@ -78,12 +86,24 @@ export async function tripsOnSite(deps: ServiceDeps, site: Site): Promise<TripSu
       plate: trips.plateIn,
       transporterName: transporters.name,
       gateInAt: trips.gateInAt,
+      gateOutAt: trips.gateOutAt,
+      exitLevel: trips.exitLevel,
       preRegistrationId: trips.preRegistrationId,
     })
     .from(trips)
     .leftJoin(transporters, eq(transporters.id, trips.transporterId))
-    .where(and(eq(trips.siteId, site.id), eq(trips.status, 'on_site')))
-    .orderBy(desc(trips.gateInAt));
+    .where(
+      and(
+        eq(trips.siteId, site.id),
+        scope === 'inside'
+          ? eq(trips.status, 'on_site')
+          : and(
+              eq(trips.status, 'closed'),
+              sql`(${trips.gateOutAt} at time zone ${site.timezone})::date = ${today}::date`,
+            ),
+      ),
+    )
+    .orderBy(desc(scope === 'inside' ? trips.gateInAt : trips.gateOutAt));
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
 
@@ -126,6 +146,8 @@ export async function tripsOnSite(deps: ServiceDeps, site: Site): Promise<TripSu
       plate: r.plate,
       transporterName: r.transporterName,
       gateInAt: r.gateInAt,
+      gateOutAt: r.gateOutAt,
+      exitLevel: r.exitLevel,
       preAdvised: r.preRegistrationId !== null,
       sdoNos,
       stage: {

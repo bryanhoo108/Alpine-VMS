@@ -256,7 +256,14 @@ export async function gateOut(deps: ServiceDeps, site: Site, userId: string, inp
           await tx
             .select()
             .from(plateReads)
-            .where(and(eq(plateReads.siteId, site.id), eq(plateReads.id, input.plateReadId)))
+            // A read already used by another truck is ignored, never attached twice.
+            .where(
+              and(
+                eq(plateReads.siteId, site.id),
+                eq(plateReads.id, input.plateReadId),
+                isNull(plateReads.tripId),
+              ),
+            )
         )[0]
       : undefined;
     const extra: RaisedAlert[] = [];

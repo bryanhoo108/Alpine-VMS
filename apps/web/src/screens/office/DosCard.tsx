@@ -17,10 +17,13 @@ const linesText = (lines: TripDetail['dos']['linked'][number]['lines']) =>
 export function DosCard({
   trip,
   mock,
+  readOnly = false,
   act,
 }: {
   trip: TripDetail;
   mock: boolean;
+  /** Truck has left: show, do not change. */
+  readOnly?: boolean;
   act: (fn: () => Promise<unknown>) => void;
 }) {
   const { dos } = trip;
@@ -68,14 +71,16 @@ export function DosCard({
                 {d.source === 'auto' ? 'Found automatically' : 'Linked by clerk'}
               </Chip>
               <SapStatus sap={d.sap} />
-              <Button
-                tone="danger"
-                className="ml-auto"
-                aria-label={`Unlink DO ${d.doNo}`}
-                onClick={() => act(() => api.del(`/api/clerk/trips/${trip.id}/dos/${d.doNo}`))}
-              >
-                <Unlink className="size-5" /> Unlink
-              </Button>
+              {!readOnly && (
+                <Button
+                  tone="danger"
+                  className="ml-auto"
+                  aria-label={`Unlink DO ${d.doNo}`}
+                  onClick={() => act(() => api.del(`/api/clerk/trips/${trip.id}/dos/${d.doNo}`))}
+                >
+                  <Unlink className="size-5" /> Unlink
+                </Button>
+              )}
             </div>
             <div className="mt-1 text-sm text-muted">
               {dateTimeOf(d.createdAt)} · {linesText(d.lines)}
@@ -95,15 +100,17 @@ export function DosCard({
                   {d.otherTripNo ? ` (${d.otherTripNo})` : ''}
                 </Chip>
                 <span className="text-sm text-muted">{dateTimeOf(d.createdAt)}</span>
-                <Button
-                  className="ml-auto"
-                  disabled={d.reason === 'other_truck'}
-                  onClick={() =>
-                    act(() => api.post(`/api/clerk/trips/${trip.id}/dos`, { doNo: d.doNo }))
-                  }
-                >
-                  <Link2 className="size-5" /> Link
-                </Button>
+                {!readOnly && (
+                  <Button
+                    className="ml-auto"
+                    disabled={d.reason === 'other_truck'}
+                    onClick={() =>
+                      act(() => api.post(`/api/clerk/trips/${trip.id}/dos`, { doNo: d.doNo }))
+                    }
+                  >
+                    <Link2 className="size-5" /> Link
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
