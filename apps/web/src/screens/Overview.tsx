@@ -23,7 +23,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Overview as OverviewData, type People, type Stage } from '../api';
+import { api, type Overview as OverviewData, type People, type Stage, settings } from '../api';
 import { MusterPanel } from '../components/MusterPanel';
 import { TimelineDialog } from '../components/Timeline';
 import { dateTimeOf } from '../format';
@@ -236,7 +236,7 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
             <section className="rounded-2xl bg-panel p-4 shadow-sm" aria-label="Where trucks are">
               <h2 className="mb-2 text-xl font-extrabold">Where trucks are</h2>
               <ul className="space-y-1.5">
-                {STAGES.map((s) => (
+                {STAGES.filter((s) => settings.doTracking || s !== 'Waiting DO').map((s) => (
                   <li key={s} className="grid grid-cols-[9rem_1fr_2rem] items-center gap-2 text-sm">
                     <span className="font-semibold">{s}</span>
                     <span className="h-4 rounded bg-slate-100">
@@ -277,12 +277,16 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
             </section>
 
             <section className="rounded-2xl bg-panel p-4 shadow-sm" aria-label="SAP and CWIS">
-              <h2 className="mb-2 text-xl font-extrabold">SAP and CWIS</h2>
-              <Sync
-                name="SAP (DO updates)"
-                waiting={data.integrations.sapWaiting}
-                since={data.integrations.sapOldestWaitingAt}
-              />
+              <h2 className="mb-2 text-xl font-extrabold">
+                {settings.doTracking ? 'SAP and CWIS' : 'CWIS'}
+              </h2>
+              {settings.doTracking && (
+                <Sync
+                  name="SAP (DO updates)"
+                  waiting={data.integrations.sapWaiting}
+                  since={data.integrations.sapOldestWaitingAt}
+                />
+              )}
               <Sync
                 name="CWIS (truck details)"
                 waiting={data.integrations.cwisWaiting}

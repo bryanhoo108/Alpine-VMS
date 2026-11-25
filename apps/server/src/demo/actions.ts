@@ -139,6 +139,8 @@ export async function weighOut(c: DemoContext, tripId: string) {
 
 /** Logistics does "Copy To" in SAP (half=true: a part delivery), then DOs are looked up. */
 export async function makeDo(c: DemoContext, sdoNos: string[], half = false) {
+  // DO_TRACKING=off: DOs are SAP's business; the demo does not make any.
+  if (!c.config.doTracking) return;
   const sources = await Promise.all(
     sdoNos.map(async (sdoNo) => {
       if (!half) return sdoNo;

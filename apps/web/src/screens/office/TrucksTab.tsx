@@ -19,6 +19,7 @@ import {
   type OfficeLists,
   type TripDetail,
   type TripSummary,
+  settings,
 } from '../../api';
 import { dateTimeOf, linesSummary, timeOf } from '../../format';
 import { formatPlate } from '../../plate';
@@ -154,7 +155,7 @@ export function TrucksTab({ trips, lists, tick, mock, onChanged }: Props) {
                           : 'Not checked'}
                     </Chip>
                   )}
-                  {t.type === 'outbound' && (
+                  {t.type === 'outbound' && settings.doTracking && (
                     <Chip tone={t.stage.doCount ? 'ok' : 'off'}>DO {t.stage.doCount}</Chip>
                   )}
                 </div>
@@ -432,7 +433,9 @@ function TripPanel({
         </Card>
       )}
 
-      {outbound && <DosCard trip={trip} mock={mock && !closed} readOnly={closed} act={act} />}
+      {outbound && settings.doTracking && (
+        <DosCard trip={trip} mock={mock && !closed} readOnly={closed} act={act} />
+      )}
 
       <Card
         title="Weighbridge (CWIS)"

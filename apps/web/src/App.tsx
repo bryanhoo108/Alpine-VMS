@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type Me } from './api';
+import { api, type Me, settings } from './api';
 import { DevPanel } from './components/DevPanel';
 import { Shell } from './components/Shell';
 import { Checker } from './screens/Checker';
@@ -65,6 +65,7 @@ export function App() {
 
   if (me === undefined) return null;
   if (me === null) return <Login onLogin={setMe} />;
+  settings.doTracking = me.doTracking !== false;
 
   const logout = () => {
     void api.post('/api/auth/logout').finally(() => setMe(null));

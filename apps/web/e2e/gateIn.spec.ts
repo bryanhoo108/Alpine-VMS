@@ -15,7 +15,7 @@ test('pre-registered truck: Collect, 2 photos, card tap', async ({ page }) => {
 
   await cameraSees(page, 'WXY 1234');
   await expect(page.getByTestId('plate-text')).toHaveText('WXY 1234');
-  await expect(page.getByTestId('prereg-chip')).toContainText('SDO 5005');
+  await expect(page.getByTestId('prereg-chip')).toContainText('SDO PL26110612');
   await expectGuardLayout(page);
   await page.screenshot(shot('2-plate'));
 
@@ -36,7 +36,7 @@ test('pre-registered truck: Collect, 2 photos, card tap', async ({ page }) => {
   const done = page.getByTestId('gate-in-done');
   await expect(done).toContainText('IN');
   await expect(done).toContainText(/T-\d{6}-001/);
-  await expect(done).toContainText('SDO 5005');
+  await expect(done).toContainText('SDO PL26110612');
   await expectGuardLayout(page);
   await page.screenshot(shot('4-done'));
 
@@ -74,10 +74,10 @@ test('camera misread: guard picks from the pre-registered list', async ({ page }
   await page.screenshot(shot('6-prereg-list'));
   await page.getByRole('button', { name: /BPN 2045/ }).click();
   await expect(page.getByTestId('plate-text')).toHaveText('BPN 2045');
-  await expect(page.getByTestId('prereg-chip')).toContainText('SDO 5009, 5010');
+  await expect(page.getByTestId('prereg-chip')).toContainText('SDO PL26110678, PL26110679');
   await page.getByRole('button', { name: 'Collect' }).click();
   await page.getByRole('button', { name: 'Test card' }).click();
-  await expect(page.getByTestId('gate-in-done')).toContainText('SDO 5009, 5010');
+  await expect(page.getByTestId('gate-in-done')).toContainText('SDO PL26110678, PL26110679');
 });
 
 test('new truck, first visit: pick company, Deliver (coil)', async ({ page }) => {

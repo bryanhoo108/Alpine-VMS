@@ -71,7 +71,7 @@ describe('pre-registered truck, plate read correctly', () => {
     const state = await entry();
     expect(state.read).toMatchObject({
       plate: 'WXY1234',
-      preRegistration: { sdoNos: ['5005'], late: false },
+      preRegistration: { sdoNos: ['PL26110612'], late: false },
       alerts: [],
     });
     expect(state.read.photoId).toEqual(expect.any(String));
@@ -87,7 +87,7 @@ describe('pre-registered truck, plate read correctly', () => {
     const body = res.json();
     expect(body).toMatchObject({
       trip: { tripNo: 'T-261021-001', plate: 'WXY1234' },
-      sdoNos: ['5005'],
+      sdoNos: ['PL26110612'],
       alerts: [],
     });
 
@@ -95,7 +95,7 @@ describe('pre-registered truck, plate read correctly', () => {
     const [card] = await h.t.db.select().from(cards).where(eq(cards.cardNo, body.cardNo));
     expect(card).toMatchObject({ status: 'issued', currentTripId: tripId });
     expect(await h.t.db.select().from(tripSdos).where(eq(tripSdos.tripId, tripId))).toMatchObject([
-      { sdoNo: '5005', source: 'pre_registration' },
+      { sdoNo: 'PL26110612', source: 'pre_registration' },
     ]);
     const [pre] = await h.t.db
       .select()
@@ -110,7 +110,11 @@ describe('pre-registered truck, plate read correctly', () => {
     const [push] = await h.t.db.select().from(cwisPushes).where(eq(cwisPushes.tripId, tripId));
     expect(push).toMatchObject({
       status: 'pending',
-      payload: { plate: 'WXY1234', sdoNos: ['5005'], transporterName: 'Transporter One Logistics' },
+      payload: {
+        plate: 'WXY1234',
+        sdoNos: ['PL26110612'],
+        transporterName: 'Transporter One Logistics',
+      },
     });
     expect(await h.t.db.select().from(auditLog).where(eq(auditLog.entityId, tripId))).toMatchObject(
       [{ action: 'gate_in' }],
@@ -134,7 +138,7 @@ describe('camera misread', () => {
       preRegistrationId: pick.id,
     });
     const body = res.json();
-    expect(body.sdoNos).toEqual(['5009', '5010']);
+    expect(body.sdoNos).toEqual(['PL26110678', 'PL26110679']);
     expect(body.alerts.map((a: { type: string }) => a.type)).toEqual(['LPR_CORRECTED']);
     const [read] = await h.t.db.select().from(plateReads).where(eq(plateReads.id, state.read.id));
     expect(read).toMatchObject({
@@ -155,7 +159,7 @@ describe('late pre-registration', () => {
     ).toMatchObject({ late: true });
     await see('BMK 7710');
     const state = await entry();
-    expect(state.read.preRegistration).toMatchObject({ sdoNos: ['5007'], late: true });
+    expect(state.read.preRegistration).toMatchObject({ sdoNos: ['PL26110641'], late: true });
   });
 });
 

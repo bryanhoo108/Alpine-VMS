@@ -21,7 +21,7 @@ export type Stage =
   | 'Ready to go';
 
 /** Where a truck inside is in its flow (outbound: match, weigh, check, DO; inbound: weigh). */
-export function stageOf(t: Pick<TripSummary, 'type' | 'stage'>): Stage {
+export function stageOf(t: Pick<TripSummary, 'type' | 'stage'>, doTracking = true): Stage {
   const s = t.stage;
   if (t.type === 'inbound') {
     if (!s.weighedIn) return 'Waiting weigh-in';
@@ -32,7 +32,7 @@ export function stageOf(t: Pick<TripSummary, 'type' | 'stage'>): Stage {
   if (!s.weighedIn) return 'Waiting weigh-in';
   if (s.checked === 'reject') return 'Rejected';
   if (s.checked === null) return 'Waiting check';
-  if (s.doCount === 0) return 'Waiting DO';
+  if (doTracking && s.doCount === 0) return 'Waiting DO';
   if (!s.weighedOut) return 'Waiting weigh-out';
   return 'Ready to go';
 }
@@ -63,6 +63,7 @@ export async function overview(deps: ServiceDeps, site: Site) {
         site.id,
         rows.find((r) => r.id === t.id)!,
         true,
+        deps.config.doTracking,
       );
       return {
         id: t.id,
@@ -75,7 +76,7 @@ export async function overview(deps: ServiceDeps, site: Site) {
           0,
           Math.round((now.getTime() - new Date(t.gateInAt).getTime()) / 60_000),
         ),
-        stage: stageOf(t),
+        stage: stageOf(t, deps.config.doTracking),
         /** Colour the truck would get at the exit right now. */
         level: status.level,
         reasons: status.reasons.filter((r) => r.level !== 'logged').map((r) => r.label),

@@ -84,7 +84,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('everything done: green Go, card tap, OUT', async ({ page }) => {
-  await truckReady(page, 'BKA 4321', { sdoNos: ['5006'], do: true, approve: true, weigh: true });
+  await truckReady(page, 'BKA 4321', {
+    sdoNos: ['PL26110634'],
+    do: true,
+    approve: true,
+    weigh: true,
+  });
   await exitGuard(page);
   await expectGuardLayout(page);
   await page.screenshot(shot('1-waiting'));
@@ -105,7 +110,7 @@ test('everything done: green Go, card tap, OUT', async ({ page }) => {
 });
 
 test('not checked, no DO: red with reasons; No card needs a second tap', async ({ page }) => {
-  await truckReady(page, 'BJR 9102', { sdoNos: ['5011'] });
+  await truckReady(page, 'BJR 9102', { sdoNos: ['PL26110702'] });
   await exitGuard(page);
   await cameraSees(page, 'BJR 9102', 'exit');
   const status = page.getByTestId('exit-status');
@@ -126,7 +131,7 @@ test('not checked, no DO: red with reasons; No card needs a second tap', async (
 });
 
 test('misread plate: Not inside, guard picks the truck', async ({ page }) => {
-  await truckReady(page, 'WRC 6630', { sdoNos: ['5008'], do: true, approve: true });
+  await truckReady(page, 'WRC 6630', { sdoNos: ['PL26110655'], do: true, approve: true });
   await exitGuard(page);
   await cameraSees(page, 'WRC 663O', 'exit');
   await expect(page.getByRole('alert')).toContainText('Not inside');

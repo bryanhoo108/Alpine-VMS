@@ -45,7 +45,7 @@ describe('trucks on site', () => {
     expect(list[1]).toMatchObject({
       plate: 'WXY1234',
       preAdvised: true,
-      sdoNos: ['5005'],
+      sdoNos: ['PL26110612'],
       transporterName: 'Transporter One Logistics',
       stage: { matched: true, weighedIn: false, checked: null, doCount: 0 },
       alertLevel: null,
@@ -62,58 +62,64 @@ describe('matching SDOs to a walk-in truck', () => {
   let tripId: string;
 
   it('shortlists SDOs: on the CWIS ticket first, then usual customers, then newest', async () => {
-    // Transporter One carried SDO 5005 (customer C0004) earlier today.
+    // Transporter One carried SDO PL26110612 (customer C0004) earlier today.
     const { trip } = await gateInTruck(h, guard, {
       plate: 'BJR9102',
       cardNo: nextCard(),
       transporterId: await transporterId('T0001'),
     });
     tripId = trip.id;
-    h.cwis.weighIn({ plate: 'BJR9102', sdoNos: ['5011'] });
+    h.cwis.weighIn({ plate: 'BJR9102', sdoNos: ['PL26110702'] });
     await pollCwisTickets(h.deps, h.site);
 
     const d = (await get(`/api/clerk/trips/${tripId}`)).json();
     expect(d.sdos).toEqual([]);
-    expect(d.tickets).toMatchObject([{ sdoNos: ['5011'], plateDiffers: false }]);
+    expect(d.tickets).toMatchObject([{ sdoNos: ['PL26110702'], plateDiffers: false }]);
     const reasons = d.shortlist.map(
       (s: { sdoNo: string; reason: string }) => `${s.sdoNo}:${s.reason}`,
     );
-    expect(reasons[0]).toBe('5011:on_ticket');
-    expect(reasons).toContain('5009:usual_customer'); // C0004 like 5005
-    expect(reasons.indexOf('5009:usual_customer')).toBeLessThan(
+    expect(reasons[0]).toBe('PL26110702:on_ticket');
+    expect(reasons).toContain('PL26110678:usual_customer'); // C0004 like PL26110612
+    expect(reasons.indexOf('PL26110678:usual_customer')).toBeLessThan(
       reasons.findIndex((r: string) => r.endsWith(':open')),
     );
     // SDOs on other trucks stay listed: one SDO can ship on several trucks.
-    expect(d.shortlist.map((s: { sdoNo: string }) => s.sdoNo)).toContain('5005');
+    expect(d.shortlist.map((s: { sdoNo: string }) => s.sdoNo)).toContain('PL26110612');
   });
 
   it('links two SDOs, records who did it, and drops them from the shortlist', async () => {
-    const res = await send('POST', `/api/clerk/trips/${tripId}/sdos`, { sdoNos: ['5011', '5013'] });
+    const res = await send('POST', `/api/clerk/trips/${tripId}/sdos`, {
+      sdoNos: ['PL26110702', 'PL26110733'],
+    });
     expect(res.statusCode).toBe(200);
     const d = res.json();
     expect(d.sdos.map((s: { sdoNo: string; source: string }) => `${s.sdoNo}:${s.source}`)).toEqual([
-      '5011:clerk',
-      '5013:clerk',
+      'PL26110702:clerk',
+      'PL26110733:clerk',
     ]);
     expect(d.sdos[0]).toMatchObject({
       customerName: 'Customer Bravo Trading',
       changed: false,
       lines: [{ pieces: 100 }],
     });
-    expect(d.shortlist.map((s: { sdoNo: string }) => s.sdoNo)).not.toContain('5011');
+    expect(d.shortlist.map((s: { sdoNo: string }) => s.sdoNo)).not.toContain('PL26110702');
     const log = await h.t.db.select().from(auditLog).where(eq(auditLog.entityId, tripId));
     expect(log.map((l) => l.action)).toContain('link_sdo');
   });
 
   it('linking the same SDO again is harmless', async () => {
-    const d = (await send('POST', `/api/clerk/trips/${tripId}/sdos`, { sdoNos: ['5011'] })).json();
+    const d = (
+      await send('POST', `/api/clerk/trips/${tripId}/sdos`, { sdoNos: ['PL26110702'] })
+    ).json();
     expect(d.sdos).toHaveLength(2);
   });
 
   it('unlinks an SDO', async () => {
-    const d = (await send('DELETE', `/api/clerk/trips/${tripId}/sdos/5013`)).json();
-    expect(d.sdos.map((s: { sdoNo: string }) => s.sdoNo)).toEqual(['5011']);
-    expect((await send('DELETE', `/api/clerk/trips/${tripId}/sdos/5013`)).statusCode).toBe(404);
+    const d = (await send('DELETE', `/api/clerk/trips/${tripId}/sdos/PL26110733`)).json();
+    expect(d.sdos.map((s: { sdoNo: string }) => s.sdoNo)).toEqual(['PL26110702']);
+    expect((await send('DELETE', `/api/clerk/trips/${tripId}/sdos/PL26110733`)).statusCode).toBe(
+      404,
+    );
   });
 
   it('refuses unknown or closed SDOs, and SDOs on inbound coil trucks', async () => {
@@ -122,11 +128,11 @@ describe('matching SDOs to a walk-in truck', () => {
     ).toEqual({
       error: 'SDO_NOT_FOUND',
     });
-    h.sap.setSdoStatus('5012', 'closed');
+    h.sap.setSdoStatus('PL26110715', 'closed');
     const { refreshSdoCache } = await import('../src/services/sdoCache.js');
     await refreshSdoCache(h.deps, h.site, { full: true });
     expect(
-      (await send('POST', `/api/clerk/trips/${tripId}/sdos`, { sdoNos: ['5012'] })).json(),
+      (await send('POST', `/api/clerk/trips/${tripId}/sdos`, { sdoNos: ['PL26110715'] })).json(),
     ).toEqual({
       error: 'SDO_CLOSED',
     });
@@ -135,7 +141,9 @@ describe('matching SDOs to a walk-in truck', () => {
       cardNo: nextCard(),
       type: 'inbound',
     });
-    const res = await send('POST', `/api/clerk/trips/${coil.trip.id}/sdos`, { sdoNos: ['5011'] });
+    const res = await send('POST', `/api/clerk/trips/${coil.trip.id}/sdos`, {
+      sdoNos: ['PL26110702'],
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: 'NOT_OUTBOUND' });
   });
@@ -172,12 +180,12 @@ describe('pre-registrations', () => {
     const res = await send('POST', '/api/clerk/pre-registrations', {
       plate: 'bqa 77',
       expectedDate: '2026-10-21',
-      sdoNos: ['5006'],
+      sdoNos: ['PL26110634'],
       transporterId: await transporterId('T0002'),
       note: 'Afternoon',
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ plate: 'BQA77', sdoNos: ['5006'] });
+    expect(res.json()).toMatchObject({ plate: 'BQA77', sdoNos: ['PL26110634'] });
     const list = (await get('/api/clerk/pre-registrations')).json();
     expect(list.find((p: { plate: string }) => p.plate === 'BQA77')).toMatchObject({
       status: 'expected',
@@ -199,7 +207,7 @@ describe('pre-registrations', () => {
   it('refuses an SDO that is not open, or no SDO', async () => {
     const base = { plate: 'BQA78', expectedDate: '2026-10-21', transporterId: null, note: null };
     expect(
-      (await send('POST', '/api/clerk/pre-registrations', { ...base, sdoNos: ['5014'] }))
+      (await send('POST', '/api/clerk/pre-registrations', { ...base, sdoNos: ['PL26100401'] }))
         .statusCode,
     ).toBe(404);
     expect(

@@ -56,7 +56,7 @@ test('a day at the gate, end to end through every screen', async ({ page }) => {
   // 1. Pre-registered pipe truck: gate in, weigh, DO, check, gate out green.
   await gateIn(page, 'WXY 1234', 'Collect');
   await openTruck(page, 'WXY 1234');
-  await expect(page.getByTestId('linked-5005')).toBeVisible();
+  await expect(page.getByTestId('linked-PL26110612')).toBeVisible();
   await page.getByRole('button', { name: 'Test weigh in' }).click();
   await page.getByRole('button', { name: 'Test DO' }).click();
   await expect(page.getByRole('list', { name: 'Linked DOs' })).toContainText('In SAP');
@@ -86,9 +86,9 @@ test('a day at the gate, end to end through every screen', async ({ page }) => {
   // 3. Walk-in pipe truck: the clerk matches it; it leaves before the check: red, recorded.
   await gateIn(page, 'BJR 9102', 'Collect', 'Transporter One Logistics');
   await openTruck(page, 'BJR 9102');
-  await page.getByRole('list', { name: 'SDO shortlist' }).getByText('SDO 5011').click();
+  await page.getByRole('list', { name: 'SDO shortlist' }).getByText('SDO PL26110702').click();
   await page.getByRole('button', { name: /^Link/ }).click();
-  await expect(page.getByTestId('linked-5011')).toBeVisible();
+  await expect(page.getByTestId('linked-PL26110702')).toBeVisible();
   await gateOut(page, 'BJR 9102', 'red');
 
   // End of day: nothing on site, the red exit is an open alert, SAP got everything.

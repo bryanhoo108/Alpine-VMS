@@ -34,7 +34,10 @@ export function defineJobs(deps: ServiceDeps & { files: FileStore }, site: Site)
     },
     { name: 'cwis-poll', everyMs: 30_000, run: () => pollCwisTickets(deps, site) },
     { name: 'cwis-push', everyMs: 10_000, run: () => sendCwisPushes(deps, site) },
-    { name: 'do-discovery', everyMs: 2 * 60_000, run: () => discoverDos(deps, site) },
+    // DO_TRACKING=off: DOs are handled in SAP; nothing to look for.
+    ...(deps.config.doTracking
+      ? [{ name: 'do-discovery', everyMs: 2 * 60_000, run: () => discoverDos(deps, site) }]
+      : []),
     { name: 'sap-writes', everyMs: 15_000, run: () => sendSapWrites(deps, site) },
     {
       name: 'transporter-sync',

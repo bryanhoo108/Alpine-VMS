@@ -18,7 +18,7 @@ const now = () => clock;
 sapContract('mock', async () => ({ adapter: new MockSapAdapter({ now }), testDoNo: '8001' }));
 cwisContract('mock', async () => {
   const cwis = new MockCwisAdapter({ now });
-  cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['5005', '5006'] });
+  cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['PL26110612', 'PL26110634'] });
   return cwis;
 });
 lprContract('mock', async () => ({
@@ -37,20 +37,20 @@ describe('MockSapAdapter sample scenarios', () => {
 
   it('does not list the closed SDO', async () => {
     const sap = new MockSapAdapter({ now });
-    expect((await sap.listOpenSdos()).map((s) => s.sdoNo)).not.toContain('5014');
-    expect((await sap.getSdo('5014'))?.status).toBe('closed');
+    expect((await sap.listOpenSdos()).map((s) => s.sdoNo)).not.toContain('PL26100401');
+    expect((await sap.getSdo('PL26100401'))?.status).toBe('closed');
   });
 
-  it('has a split SDO (5001 → 8001, 8002)', async () => {
+  it('has a split SDO (PL26090245 → 8001, 8002)', async () => {
     const sap = new MockSapAdapter({ now });
-    const dos = await sap.getDosForSdos(['5001']);
+    const dos = await sap.getDosForSdos(['PL26090245']);
     expect(dos.map((d) => d.doNo).sort()).toEqual(['8001', '8002']);
   });
 
-  it('has a combined DO (5002 + 5003 → 8003)', async () => {
+  it('has a combined DO (PL26100318 + PL26100322 → 8003)', async () => {
     const sap = new MockSapAdapter({ now });
-    expect((await sap.getDosForSdos(['5002'])).map((d) => d.doNo)).toEqual(['8003']);
-    expect((await sap.getDosForSdos(['5003'])).map((d) => d.doNo)).toEqual(['8003']);
+    expect((await sap.getDosForSdos(['PL26100318'])).map((d) => d.doNo)).toEqual(['8003']);
+    expect((await sap.getDosForSdos(['PL26100322'])).map((d) => d.doNo)).toEqual(['8003']);
   });
 
   it("yesterday's DOs do not count for a truck that gated in today", async () => {
@@ -58,35 +58,35 @@ describe('MockSapAdapter sample scenarios', () => {
     const r = selectDosForTrip({
       tripId: 'T1',
       gateInAt: new Date('2026-10-21T08:00:00+08:00'),
-      sdoNos: ['5001'],
-      dos: await sap.getDosForSdos(['5001']),
+      sdoNos: ['PL26090245'],
+      dos: await sap.getDosForSdos(['PL26090245']),
       claims: new Map(),
     });
-    expect(r.sdosWithoutDo).toEqual(['5001']);
+    expect(r.sdosWithoutDo).toEqual(['PL26090245']);
   });
 
   it('creates a combined DO from two SDOs with Copy To references', async () => {
     const sap = new MockSapAdapter({ now });
-    const d = sap.createDo(['5005', '5006']);
+    const d = sap.createDo(['PL26110612', 'PL26110634']);
     expect(d.createdAt).toEqual(NOW);
-    expect(d.lines.map((l) => l.baseSdoNo)).toEqual(['5005', '5005', '5006']);
-    expect((await sap.getDosForSdos(['5006'])).map((x) => x.doNo)).toEqual([d.doNo]);
+    expect(d.lines.map((l) => l.baseSdoNo)).toEqual(['PL26110612', 'PL26110612', 'PL26110634']);
+    expect((await sap.getDosForSdos(['PL26110634'])).map((x) => x.doNo)).toEqual([d.doNo]);
   });
 
   it('creates a partial DO (split delivery)', () => {
     const sap = new MockSapAdapter({ now });
-    const d = sap.createDo([{ sdoNo: '5005', lines: [{ lineNo: 1, pieces: 50 }] }]);
+    const d = sap.createDo([{ sdoNo: 'PL26110612', lines: [{ lineNo: 1, pieces: 50 }] }]);
     expect(d.lines).toEqual([
-      { lineNo: 0, itemCode: 'GI-050-M-6', pieces: 50, baseSdoNo: '5005', baseLineNo: 1 },
+      { lineNo: 0, itemCode: 'GI-050-M-6', pieces: 50, baseSdoNo: 'PL26110612', baseLineNo: 1 },
     ]);
   });
 
   it('amending an SDO changes its update stamp and line version', async () => {
     const sap = new MockSapAdapter({ now });
-    const before = (await sap.getSdo('5004'))!;
+    const before = (await sap.getSdo('PL26110587'))!;
     clock = new Date(NOW.getTime() + 60_000);
-    sap.amendSdoLine('5004', 0, { pieces: 30 });
-    const after = (await sap.getSdo('5004'))!;
+    sap.amendSdoLine('PL26110587', 0, { pieces: 30 });
+    const after = (await sap.getSdo('PL26110587'))!;
     clock = NOW;
     expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
     expect(sdoVersion(after.lines)).not.toBe(sdoVersion(before.lines));
@@ -94,9 +94,9 @@ describe('MockSapAdapter sample scenarios', () => {
 
   it('returns copies, so callers cannot change SAP data', async () => {
     const sap = new MockSapAdapter({ now });
-    const s = (await sap.getSdo('5001'))!;
+    const s = (await sap.getSdo('PL26090245'))!;
     s.lines[0]!.pieces = 1;
-    expect((await sap.getSdo('5001'))!.lines[0]!.pieces).toBe(400);
+    expect((await sap.getSdo('PL26090245'))!.lines[0]!.pieces).toBe(400);
   });
 
   it('fails the next writes on request, then succeeds', async () => {
@@ -124,17 +124,17 @@ describe('MockSapAdapter sample scenarios', () => {
 
   it('closes an SDO on request', async () => {
     const sap = new MockSapAdapter({ now });
-    sap.setSdoStatus('5001', 'closed');
-    expect((await sap.listOpenSdos()).map((s) => s.sdoNo)).not.toContain('5001');
+    sap.setSdoStatus('PL26090245', 'closed');
+    expect((await sap.listOpenSdos()).map((s) => s.sdoNo)).not.toContain('PL26090245');
   });
 
   it('resets to fresh sample data', async () => {
     const sap = new MockSapAdapter({ now });
-    sap.createDo(['5005']);
-    sap.setSdoStatus('5001', 'closed');
+    sap.createDo(['PL26110612']);
+    sap.setSdoStatus('PL26090245', 'closed');
     sap.reset();
-    expect(await sap.getDosForSdos(['5005'])).toEqual([]);
-    expect((await sap.getSdo('5001'))?.status).toBe('open');
+    expect(await sap.getDosForSdos(['PL26110612'])).toEqual([]);
+    expect((await sap.getSdo('PL26090245'))?.status).toBe('open');
   });
 
   it('can go offline and back', async () => {
@@ -149,9 +149,9 @@ describe('MockSapAdapter sample scenarios', () => {
 describe('MockCwisAdapter', () => {
   it('keeps several SDOs on one ticket when the operator enters them', () => {
     const cwis = new MockCwisAdapter({ now });
-    expect(cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['5009', '5010'] }).sdoNos).toEqual([
-      '5009',
-      '5010',
+    expect(cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['PL26110678', 'PL26110679'] }).sdoNos).toEqual([
+      'PL26110678',
+      'PL26110679',
     ]);
   });
 
@@ -163,11 +163,11 @@ describe('MockCwisAdapter', () => {
       plate: 'WXY 1234',
       transporterName: 'Transporter One Logistics',
       driverName: null,
-      sdoNos: ['5005', '5006'],
+      sdoNos: ['PL26110612', 'PL26110634'],
     });
     const t = cwis.weighIn({ plate: 'WXY 1234', cardNo: '04A1B2C3D40001' });
     expect(t).toMatchObject({
-      sdoNos: ['5005', '5006'],
+      sdoNos: ['PL26110612', 'PL26110634'],
       vmsTripNo: 'T-261021-001',
       transporterName: 'Transporter One Logistics',
       weighOutAt: null,
@@ -182,7 +182,7 @@ describe('MockCwisAdapter', () => {
       plate: 'WXY 1234',
       transporterName: null,
       driverName: null,
-      sdoNos: ['5005'],
+      sdoNos: ['PL26110612'],
     });
     expect(cwis.weighIn({ plate: 'WXY 1243', cardNo: 'C1' })).toMatchObject({
       plate: 'WXY 1243',
@@ -211,8 +211,8 @@ describe('MockCwisAdapter', () => {
       driverName: null,
     };
     await cwis.pushPendingTruck({ ...base, sdoNos: [] });
-    await cwis.pushPendingTruck({ ...base, sdoNos: ['5001'] });
-    expect(cwis.pendingTrucks()).toEqual([{ ...base, sdoNos: ['5001'] }]);
+    await cwis.pushPendingTruck({ ...base, sdoNos: ['PL26090245'] });
+    expect(cwis.pendingTrucks()).toEqual([{ ...base, sdoNos: ['PL26090245'] }]);
   });
 
   it('gives a reused card the newest truck, and a weigh-in uses the pending truck up', async () => {
@@ -225,15 +225,15 @@ describe('MockCwisAdapter', () => {
       driverName: null,
       sdoNos: [sdo],
     });
-    await cwis.pushPendingTruck(truck('T1', 'A1', '5012'));
-    expect(cwis.weighIn({ plate: 'A1', cardNo: 'C1' }).sdoNos).toEqual(['5012']);
+    await cwis.pushPendingTruck(truck('T1', 'A1', 'PL26110715'));
+    expect(cwis.weighIn({ plate: 'A1', cardNo: 'C1' }).sdoNos).toEqual(['PL26110715']);
     expect(cwis.pendingTrucks()).toEqual([]);
 
     // T2 never weighed in; T3 got the same card later.
-    await cwis.pushPendingTruck(truck('T2', 'B2', '5001'));
-    await cwis.pushPendingTruck(truck('T3', 'C3', '5008'));
+    await cwis.pushPendingTruck(truck('T2', 'B2', 'PL26090245'));
+    await cwis.pushPendingTruck(truck('T3', 'C3', 'PL26110655'));
     expect(cwis.weighIn({ plate: 'C3', cardNo: 'C1' })).toMatchObject({
-      sdoNos: ['5008'],
+      sdoNos: ['PL26110655'],
       vmsTripNo: 'T3',
     });
   });

@@ -32,7 +32,7 @@ export function cwisContract(name: string, make: () => Promise<CwisAdapter>) {
       };
       await adapter.pushPendingTruck(truck);
       await expect(
-        adapter.pushPendingTruck({ ...truck, sdoNos: ['5001'] }),
+        adapter.pushPendingTruck({ ...truck, sdoNos: ['PL26090245'] }),
       ).resolves.toBeUndefined();
     });
   });

@@ -38,7 +38,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('normal load: All OK, Photo, Approve', async ({ page }) => {
-  await truckReady(page, 'BPN 2046', ['5009', '5010']);
+  await truckReady(page, 'BPN 2046', ['PL26110678', 'PL26110679']);
   await signInWithPin(page, 'Checker 1');
   const queue = page.getByRole('list', { name: 'Waiting for check' });
   await expect(queue).toContainText('BPN 2046');
@@ -64,13 +64,13 @@ test('normal load: All OK, Photo, Approve', async ({ page }) => {
 });
 
 test('card tap opens the truck; count a short line; reject as damaged', async ({ page }) => {
-  const { cardNo } = await truckReady(page, 'WRC 6630', ['5008']);
+  const { cardNo } = await truckReady(page, 'WRC 6630', ['PL26110655']);
   await signInWithPin(page, 'Checker 2');
   await expect(page.getByText('Tap card')).toBeVisible();
   // A USB/NFC reader types the card number and Enter.
   await page.keyboard.type(cardNo, { delay: 5 });
   await page.keyboard.press('Enter');
-  const line = page.getByTestId('line-5008#0');
+  const line = page.getByTestId('line-PL26110655#0');
   await expect(line).toBeVisible();
 
   await page.getByRole('button', { name: /^Count/ }).click();
@@ -93,16 +93,18 @@ test('card tap opens the truck; count a short line; reject as damaged', async ({
 });
 
 test('SDO amended after gate in shows "SDO changed" on the line', async ({ page }) => {
-  const { tripId } = await truckReady(page, 'BQA 7701', ['5004']);
+  const { tripId } = await truckReady(page, 'BQA 7701', ['PL26110587']);
   await signInWithPin(page, 'Checker 1');
-  await page.request.post('/api/dev/sap/amend', { data: { sdoNo: '5004', lineNo: 0, pieces: 30 } });
+  await page.request.post('/api/dev/sap/amend', {
+    data: { sdoNo: 'PL26110587', lineNo: 0, pieces: 30 },
+  });
   await page
     .getByRole('list', { name: 'Waiting for check' })
     .getByRole('button', { name: /BQA 7701/ })
     .click();
   await expect(page.getByTestId('sdo-changed')).toBeVisible();
-  await expect(page.getByTestId('line-5004#0')).toContainText('Changed');
-  await expect(page.getByTestId('line-5004#0')).toContainText('30');
+  await expect(page.getByTestId('line-PL26110587#0')).toContainText('Changed');
+  await expect(page.getByTestId('line-PL26110587#0')).toContainText('30');
   await expectGuardLayout(page);
   await page.screenshot(shot('6-changed'));
   expect(tripId).toBeTruthy();

@@ -39,7 +39,7 @@ describe('carry-forward to CWIS', () => {
     expect(await pushesOf(trip.id)).toMatchObject([{ status: 'done', attempts: 1 }]);
     expect(h.cwis.pendingTrucks().find((p) => p.tripNo === trip.tripNo)).toMatchObject({
       plate: 'WXY1234',
-      sdoNos: ['5005'],
+      sdoNos: ['PL26110612'],
       transporterName: 'Transporter One Logistics',
     });
   });
@@ -78,11 +78,11 @@ describe('carry-forward to CWIS', () => {
       method: 'POST',
       url: `/api/clerk/trips/${trip.id}/sdos`,
       headers: { cookie: clerk },
-      payload: { sdoNos: ['5011'] },
+      payload: { sdoNos: ['PL26110702'] },
     });
     const pushes = await pushesOf(trip.id);
     expect(pushes).toHaveLength(1);
-    expect(pushes[0]!.payload).toMatchObject({ sdoNos: ['5011'] });
+    expect(pushes[0]!.payload).toMatchObject({ sdoNos: ['PL26110702'] });
   });
 
   it('a clerk edit after the push queues a new one with the update', async () => {
@@ -92,7 +92,7 @@ describe('carry-forward to CWIS', () => {
       method: 'POST',
       url: `/api/clerk/trips/${trip.id}/sdos`,
       headers: { cookie: clerk },
-      payload: { sdoNos: ['5012'] },
+      payload: { sdoNos: ['PL26110715'] },
     });
     const pushes = await pushesOf(trip.id);
     expect(pushes.map((p) => p.status).sort()).toEqual(['done', 'pending']);
@@ -105,7 +105,7 @@ describe('reading CWIS tickets', () => {
     const { trip } = await gateInTruck(h, guard, { plate: 'BPN2045', cardNo });
     await sendCwisPushes(h.deps, h.site);
     const ticket = h.cwis.weighIn({ plate: 'BPN2045', cardNo });
-    expect(ticket.sdoNos).toEqual(['5009', '5010']);
+    expect(ticket.sdoNos).toEqual(['PL26110678', 'PL26110679']);
     expect(await pollCwisTickets(h.deps, h.site)).toContain(trip.id);
     expect(await ticketsOf(trip.id)).toMatchObject([
       { ticketNo: ticket.ticketNo, weighOutAt: null },
@@ -152,7 +152,7 @@ describe('reading CWIS tickets', () => {
   it('a ticket that came before the clerk matched the truck links once the SDO is linked', async () => {
     const { trip } = await gateInTruck(h, guard, { plate: 'WRC6630', cardNo: nextCard() });
     // Operator typed the SDO and a wrong plate, no card tap: nothing to match yet.
-    const ticket = h.cwis.weighIn({ plate: 'WRC 6680', sdoNos: ['5013'] });
+    const ticket = h.cwis.weighIn({ plate: 'WRC 6680', sdoNos: ['PL26110733'] });
     await pollCwisTickets(h.deps, h.site);
     expect(await ticketsOf(trip.id)).toEqual([]);
 
@@ -160,7 +160,7 @@ describe('reading CWIS tickets', () => {
       method: 'POST',
       url: `/api/clerk/trips/${trip.id}/sdos`,
       headers: { cookie: clerk },
-      payload: { sdoNos: ['5013'] },
+      payload: { sdoNos: ['PL26110733'] },
     });
     await pollCwisTickets(h.deps, h.site);
     expect((await ticketsOf(trip.id)).map((t) => t.ticketNo)).toEqual([ticket.ticketNo]);

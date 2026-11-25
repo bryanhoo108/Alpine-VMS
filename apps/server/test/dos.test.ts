@@ -55,9 +55,9 @@ const writesOf = (tripId: string) =>
 
 describe('finding DOs', () => {
   it('links a new DO to the one truck carrying its SDO, and queues the SAP update', async () => {
-    const trip = await truck('BKA4321', ['5006']);
+    const trip = await truck('BKA4321', ['PL26110634']);
     later();
-    const d = h.sap.createDo(['5006']);
+    const d = h.sap.createDo(['PL26110634']);
     const r = await discoverDos(h.deps, h.site);
     expect(r.linked).toEqual([{ doNo: d.doNo, tripId: trip.id }]);
     expect(await linkedOf(trip.id)).toEqual([d.doNo]);
@@ -72,21 +72,21 @@ describe('finding DOs', () => {
   });
 
   it("does not take yesterday's DOs for today's truck (shown to the clerk only)", async () => {
-    const trip = await truck('BMK7712', ['5001']);
+    const trip = await truck('BMK7712', ['PL26090245']);
     await discoverDos(h.deps, h.site);
     expect(await linkedOf(trip.id)).toEqual([]);
     const view = await detail(trip.id);
-    expect(view.dos.sdosWithoutDo).toEqual(['5001']);
+    expect(view.dos.sdosWithoutDo).toEqual(['PL26090245']);
     expect(
       view.dos.candidates.map((c: { doNo: string; reason: string }) => `${c.doNo}:${c.reason}`),
     ).toEqual(['8001:before_gate_in', '8002:before_gate_in']);
   });
 
   it('split: two part DOs for one SDO both link; checker expects the DO pieces', async () => {
-    const trip = await truck('WRC6640', ['5010']); // 800 pcs on the SDO
+    const trip = await truck('WRC6640', ['PL26110679']); // 800 pcs on the SDO
     later();
-    h.sap.createDo([{ sdoNo: '5010', lines: [{ lineNo: 0, pieces: 300 }] }]);
-    h.sap.createDo([{ sdoNo: '5010', lines: [{ lineNo: 0, pieces: 100 }] }]);
+    h.sap.createDo([{ sdoNo: 'PL26110679', lines: [{ lineNo: 0, pieces: 300 }] }]);
+    h.sap.createDo([{ sdoNo: 'PL26110679', lines: [{ lineNo: 0, pieces: 100 }] }]);
     await discoverDos(h.deps, h.site);
     expect(await linkedOf(trip.id)).toHaveLength(2);
     const view = (
@@ -105,8 +105,8 @@ describe('finding DOs', () => {
       payload: {
         decision: 'approve',
         reason: null,
-        versions: { '5010': view.sdos[0].version },
-        lines: [{ sdoNo: '5010', lineNo: 0, actualPieces: 400 }],
+        versions: { PL26110679: view.sdos[0].version },
+        lines: [{ sdoNo: 'PL26110679', lineNo: 0, actualPieces: 400 }],
         photoIds: [],
       },
     });
@@ -114,19 +114,19 @@ describe('finding DOs', () => {
   });
 
   it('combined: one DO for two SDOs on the truck covers both', async () => {
-    const trip = await truck('WRC6641', ['5011', '5013']);
+    const trip = await truck('WRC6641', ['PL26110702', 'PL26110733']);
     later();
-    const d = h.sap.createDo(['5011', '5013']);
+    const d = h.sap.createDo(['PL26110702', 'PL26110733']);
     await discoverDos(h.deps, h.site);
     expect(await linkedOf(trip.id)).toEqual([d.doNo]);
     expect((await detail(trip.id)).dos.sdosWithoutDo).toEqual([]);
   });
 
   it('two trucks on one SDO: the DO is left for the clerk, who links it to one', async () => {
-    const a = await truck('WRC6642', ['5012']);
-    const b = await truck('WRC6643', ['5012']);
+    const a = await truck('WRC6642', ['PL26110715']);
+    const b = await truck('WRC6643', ['PL26110715']);
     later();
-    const d = h.sap.createDo(['5012']);
+    const d = h.sap.createDo(['PL26110715']);
     const r = await discoverDos(h.deps, h.site);
     expect(r.ambiguous).toEqual([{ doNo: d.doNo, tripIds: [a.id, b.id] }]);
     expect(await linkedOf(a.id)).toEqual([]);
@@ -155,9 +155,9 @@ describe('finding DOs', () => {
   });
 
   it('a DO the clerk unlinks is not linked back automatically', async () => {
-    const trip = await truck('WRC6644', ['5015']);
+    const trip = await truck('WRC6644', ['PL26110823']);
     later();
-    const d = h.sap.createDo(['5015']);
+    const d = h.sap.createDo(['PL26110823']);
     await discoverDos(h.deps, h.site);
     const res = await h.app.inject({
       method: 'DELETE',
@@ -180,9 +180,9 @@ describe('finding DOs', () => {
 describe('writing UDFs to SAP', () => {
   it('fills plate, WB ticket, checker and gate-in on the DO as each becomes known', async () => {
     const cardNo = nextCard();
-    const { trip } = await gateInTruck(h, guard, { plate: 'BPN2045', cardNo }); // pre-registered 5009+5010
+    const { trip } = await gateInTruck(h, guard, { plate: 'BPN2045', cardNo }); // pre-registered PL26110678+PL26110679
     later();
-    const d = h.sap.createDo(['5009']);
+    const d = h.sap.createDo(['PL26110678']);
     await discoverDos(h.deps, h.site);
     await sendSapWrites(h.deps, h.site);
     expect(h.sap.udfsOf(d.doNo)).toEqual({ plate: 'BPN2045', gateInAt: expect.any(Date) });
@@ -228,9 +228,9 @@ describe('writing UDFs to SAP', () => {
   });
 
   it('never queues the same values twice', async () => {
-    const trip = await truck('BQA7710', ['5007']);
+    const trip = await truck('BQA7710', ['PL26110641']);
     later();
-    h.sap.createDo(['5007']);
+    h.sap.createDo(['PL26110641']);
     await discoverDos(h.deps, h.site);
     const before = (await writesOf(trip.id)).length;
     expect(await queueDoUdfs(h.t.db, h.site.id, trip.id, h.clock.now)).toBe(0);
@@ -239,9 +239,9 @@ describe('writing UDFs to SAP', () => {
 
   it('retries while SAP refuses, without writing twice', async () => {
     await sendSapWrites(h.deps, h.site); // clear writes left by earlier tests
-    const trip = await truck('BQA7711', ['5008']);
+    const trip = await truck('BQA7711', ['PL26110655']);
     later();
-    const d = h.sap.createDo(['5008']);
+    const d = h.sap.createDo(['PL26110655']);
     await discoverDos(h.deps, h.site);
     const applied = h.sap.appliedWrites.length;
     h.sap.failNextWrites(1);
@@ -270,10 +270,10 @@ describe('writing UDFs to SAP', () => {
       method: 'POST',
       url: `/api/clerk/trips/${trip.id}/sdos`,
       headers: { cookie: clerk },
-      payload: { sdoNos: ['5004'] },
+      payload: { sdoNos: ['PL26110587'] },
     });
     later();
-    h.sap.createDo(['5004']);
+    h.sap.createDo(['PL26110587']);
     await discoverDos(h.deps, h.site);
     await sendCwisPushes(h.deps, h.site);
     h.cwis.weighIn({ plate: 'BQA7712', cardNo });

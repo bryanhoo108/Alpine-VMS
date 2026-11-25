@@ -93,9 +93,9 @@ const types = (status: { reasons: { type: string }[] }) => status.reasons.map((r
 
 describe('green: everything done', () => {
   it('shows green at the exit camera, collects the card, closes the trip, stamps gate-out in SAP', async () => {
-    const t = await truck('BKA4321', { sdoNos: ['5006'] });
+    const t = await truck('BKA4321', { sdoNos: ['PL26110634'] });
     later();
-    const d = h.sap.createDo(['5006']);
+    const d = h.sap.createDo(['PL26110634']);
     await discoverDos(h.deps, h.site);
     await approve(t.id);
     await weigh(t, 'BKA4321');
@@ -129,7 +129,7 @@ describe('green: everything done', () => {
 
 describe('amber and red: recorded and sent, never kept in', () => {
   it('no check + no DO: red, each reason alerts the supervisor, truck still goes out', async () => {
-    const t = await truck('BJR9102', { sdoNos: ['5011'] });
+    const t = await truck('BJR9102', { sdoNos: ['PL26110702'] });
     const before = h.notifier.sent.length;
     const res = await out(t.id, t.cardNo);
     expect(res.statusCode).toBe(200);
@@ -142,12 +142,12 @@ describe('amber and red: recorded and sent, never kept in', () => {
   });
 
   it('approved but no DO: amber', async () => {
-    const t = await truck('BJR9103', { sdoNos: ['5013'] });
+    const t = await truck('BJR9103', { sdoNos: ['PL26110733'] });
     await approve(t.id);
     const res = await out(t.id, t.cardNo);
     expect(res.json().status).toMatchObject({
       level: 'amber',
-      reasons: [{ type: 'EXIT_NO_DO', detail: { sdoNo: '5013' } }],
+      reasons: [{ type: 'EXIT_NO_DO', detail: { sdoNo: 'PL26110733' } }],
     });
   });
 
@@ -160,9 +160,9 @@ describe('amber and red: recorded and sent, never kept in', () => {
   });
 
   it('CWIS plate differs: amber, shown before the card tap', async () => {
-    const t = await truck('BJR9105', { sdoNos: ['5012'] });
+    const t = await truck('BJR9105', { sdoNos: ['PL26110715'] });
     later();
-    h.sap.createDo(['5012']);
+    h.sap.createDo(['PL26110715']);
     await discoverDos(h.deps, h.site);
     await approve(t.id);
     await weigh(t, 'BJR 9150');
@@ -184,7 +184,7 @@ describe('amber and red: recorded and sent, never kept in', () => {
 
 describe('cards at the exit', () => {
   it('no card: red, card lost, lost-card count for the company; the card cannot be reissued until found', async () => {
-    const t = await truck('WRC6650', { sdoNos: ['5008'], transporterCode: 'T0004' });
+    const t = await truck('WRC6650', { sdoNos: ['PL26110655'], transporterCode: 'T0004' });
     const [before] = await h.t.db
       .select()
       .from(transporters)
@@ -225,8 +225,8 @@ describe('cards at the exit', () => {
   });
 
   it("another truck's card is refused; the guard taps the right one", async () => {
-    const a = await truck('WRC6660', { sdoNos: ['5007'] });
-    const b = await truck('WRC6661', { sdoNos: ['5007'] });
+    const a = await truck('WRC6660', { sdoNos: ['PL26110641'] });
+    const b = await truck('WRC6661', { sdoNos: ['PL26110641'] });
     const res = await out(a.id, b.cardNo);
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: 'CARD_ON_OTHER_TRIP' });
@@ -236,7 +236,7 @@ describe('cards at the exit', () => {
   });
 
   it('finds the truck from its card (no camera read), in NFC format too', async () => {
-    const t = await truck('WRC6670', { sdoNos: ['5004'] });
+    const t = await truck('WRC6670', { sdoNos: ['PL26110587'] });
     const nfc = t.cardNo.toLowerCase().match(/../g)!.join(':');
     expect(
       (await inject('GET', `/api/gate/exit/card/${encodeURIComponent(nfc)}`)).json(),
@@ -248,7 +248,7 @@ describe('cards at the exit', () => {
   });
 
   it('a closed trip cannot go out twice', async () => {
-    const t = await truck('WRC6671', { sdoNos: ['5004'] });
+    const t = await truck('WRC6671', { sdoNos: ['PL26110587'] });
     await out(t.id, t.cardNo);
     expect((await out(t.id, null)).json()).toEqual({ error: 'TRIP_CLOSED' });
   });
@@ -256,7 +256,7 @@ describe('cards at the exit', () => {
 
 describe('exit camera', () => {
   it('misread plate: no match, the guard picks the truck; the correction is logged', async () => {
-    const t = await truck('BQA7720', { sdoNos: ['5010'] });
+    const t = await truck('BQA7720', { sdoNos: ['PL26110679'] });
     await exitSees('BQA 772O');
     const state = (await inject('GET', '/api/gate/exit')).json();
     expect(state.truck).toBeNull();
@@ -273,11 +273,11 @@ describe('exit camera', () => {
 
 describe('after the truck has gone', () => {
   it('a DO made after exit still links, and SAP gets the gate-out time', async () => {
-    const t = await truck('BQA7730', { sdoNos: ['5015'] });
+    const t = await truck('BQA7730', { sdoNos: ['PL26110823'] });
     await approve(t.id);
     expect((await out(t.id, t.cardNo)).json().status.level).toBe('amber'); // No DO
     later();
-    const d = h.sap.createDo(['5015']);
+    const d = h.sap.createDo(['PL26110823']);
     const r = await discoverDos(h.deps, h.site);
     expect(r.linked).toEqual([{ doNo: d.doNo, tripId: t.id }]);
     const [w] = await h.t.db.select().from(sapWrites).where(eq(sapWrites.doNo, d.doNo));
@@ -285,7 +285,7 @@ describe('after the truck has gone', () => {
   });
 
   it('nightly reconcile lists exits with no DO and DOs with no exit', async () => {
-    const leftover = h.sap.createDo(['5009']); // no truck carries 5009 out
+    const leftover = h.sap.createDo(['PL26110678']); // no truck carries PL26110678 out
     await h.t.db.transaction(async (tx) => {
       const { cacheDos } = await import('../src/services/dos.js');
       await cacheDos(tx, h.site.id, [leftover], h.clock.now);

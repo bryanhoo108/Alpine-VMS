@@ -6,6 +6,12 @@ export interface Config {
   filesDir: string;
   /** IC photos and full IC numbers are deleted after this many days (PDPA). */
   icPhotoRetentionDays: number;
+  /**
+   * Whether the VMS follows DOs: finds them from the SDO, shows them, counts
+   * "No DO" at the exit and writes gate data onto them in SAP. Off when DOs
+   * are handled in SAP separately (DO_TRACKING=off).
+   */
+  doTracking: boolean;
   /** Key for full IC numbers; without it only the last 4 digits are kept. */
   icEncryptionKey: string | null;
   /** HMAC key for session cookies; at least 32 characters. */
@@ -62,6 +68,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     filesDir: env.FILES_DIR || './files',
     icPhotoRetentionDays: int(env, 'IC_PHOTO_RETENTION_DAYS', 90),
     icEncryptionKey: icKey(env),
+    doTracking: (env.DO_TRACKING || 'on') !== 'off',
     sessionSecret,
     sessionHours: int(env, 'SESSION_HOURS', 14),
     webDir: env.WEB_DIR || null,

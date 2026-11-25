@@ -71,7 +71,7 @@ Browser tests start their own server and throwaway database. If Playwright canno
 
 Sign in as **Entry Guard**. The purple **Test** button (bottom left, mock mode only) makes the entry camera "see" a sample plate. In the card step, **Test card** stands in for an RFID tap. On a real tablet the card is read by NFC (Chrome on Android) or a USB keyboard-style reader.
 
-- `WXY 1234`: pre-registered, links SDO 5005 automatically
+- `WXY 1234`: pre-registered, links SDO PL26110612 automatically
 - `BPN 2045`: pre-registered with two SDOs; send `BPN 2O45` to see a misread and pick it from the list
 - `BMK 7710`: pre-registered yesterday, shows as late
 - `BQL 1187`: on the watchlist, red screen and alarm
@@ -91,7 +91,7 @@ Supervisors land on Office and can switch to Gate In from the title bar.
 
 Sign in as **Checker 1** with the PIN. Trucks with SDOs that are not approved yet are listed; tap one, or tap its RFID card. The SDO lines are re-read live from SAP (the cached copy is shown, marked **Offline**, when SAP does not answer within 4 seconds). Normal load: **All OK**, **Photo**, **Approve**. Tap a line's number to count pieces with −10/−1/+1/+10. **Reject** asks for one of four reasons and alerts the supervisor and logistics; the truck goes back on the list as **Re-check**.
 
-To see **SDO changed** in mock mode, amend an SDO line after the truck is matched: `POST /api/dev/sap/amend {"sdoNo":"5004","lineNo":0,"pieces":30}`.
+To see **SDO changed** in mock mode, amend an SDO line after the truck is matched: `POST /api/dev/sap/amend {"sdoNo":"PL26110587","lineNo":0,"pieces":30}`.
 
 ### Trying Gate Out
 
@@ -148,8 +148,8 @@ Database tests create and drop their own throwaway databases on the server in `T
 
 ### Sample data
 
-- **SAP mock:** 15 SDOs (5001–5015; 5014 closed). SDO 5001 was split into DOs 8001 and 8002; SDOs 5002 and 5003 were combined into DO 8003. Those DOs are dated yesterday, so they do not count for trucks that gate in today.
-- **Pre-registrations:** WXY 1234 (SDO 5005, due today), BPN 2045 (SDOs 5009 + 5010, due today), BMK 7710 (SDO 5007, late).
+- **SAP mock:** 15 SDOs (PL26090245–PL26110823; PL26100401 closed). SDO PL26090245 was split into DOs 8001 and 8002; SDOs PL26100318 and PL26100322 were combined into DO 8003. Those DOs are dated yesterday, so they do not count for trucks that gate in today.
+- **Pre-registrations:** WXY 1234 (SDO PL26110612, due today), BPN 2045 (SDOs PL26110678 + PL26110679, due today), BMK 7710 (SDO PL26110641, late).
 - **Watchlist:** BQL 1187 (sample red alert).
 
 ## Database changes

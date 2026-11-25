@@ -48,7 +48,12 @@ export interface Me {
   id: string;
   displayName: string;
   role: Role;
+  /** False when DOs are handled in SAP separately: screens leave DOs out. */
+  doTracking?: boolean;
 }
+
+/** Site settings the screens follow, set when someone signs in. */
+export const settings = { doTracking: true };
 
 export interface Person {
   username: string;

@@ -89,7 +89,7 @@ describe('access', () => {
 
 describe('waiting list and card tap', () => {
   it('lists outbound trucks with SDOs that are not approved yet', async () => {
-    const pre = await gateInTruck(h, guard, { plate: 'WXY1234', cardNo: nextCard() }); // pre-registered 5005
+    const pre = await gateInTruck(h, guard, { plate: 'WXY1234', cardNo: nextCard() }); // pre-registered PL26110612
     const unmatched = await linkedTruck('BJR9102', []);
     const coil = await gateInTruck(h, guard, {
       plate: 'VBA5521',
@@ -115,16 +115,16 @@ describe('waiting list and card tap', () => {
 
 describe('checking a load', () => {
   it('shows the latest SDO lines read live from SAP', async () => {
-    const trip = await linkedTruck('BPN2046', ['5009', '5010']);
+    const trip = await linkedTruck('BPN2046', ['PL26110678', 'PL26110679']);
     const v = await view(trip.id);
     expect(v.offline).toBe(false);
-    expect(v.sdos.map((s) => s.sdoNo)).toEqual(['5009', '5010']);
+    expect(v.sdos.map((s) => s.sdoNo)).toEqual(['PL26110678', 'PL26110679']);
     expect(v.sdos[0]!.lines.map((l) => l.pieces)).toEqual([24, 30]);
     expect(v.lastDecision).toBeNull();
   });
 
   it('approves with every line ticked: recorded, audited, off the waiting list', async () => {
-    const trip = await linkedTruck('BKA4321', ['5006']);
+    const trip = await linkedTruck('BKA4321', ['PL26110634']);
     const v = await view(trip.id);
     const res = await post(`/api/checker/trips/${trip.id}/decision`, body(v));
     expect(res.statusCode).toBe(200);
@@ -136,7 +136,7 @@ describe('checking a load', () => {
     expect(d).toMatchObject({
       decision: 'approve',
       reason: null,
-      lineChecks: [{ sdoNo: '5006', expectedPieces: 500, actualPieces: 500, ok: true }],
+      lineChecks: [{ sdoNo: 'PL26110634', expectedPieces: 500, actualPieces: 500, ok: true }],
     });
     const ids = (await get('/api/checker/queue')).json().map((q: { id: string }) => q.id);
     expect(ids).not.toContain(trip.id);
@@ -149,20 +149,20 @@ describe('checking a load', () => {
   });
 
   it('approves a part load (split delivery) and records the difference', async () => {
-    const trip = await linkedTruck('BMK7711', ['5010']);
+    const trip = await linkedTruck('BMK7711', ['PL26110679']);
     const v = await view(trip.id);
     const res = await post(
       `/api/checker/trips/${trip.id}/decision`,
-      body(v, { pieces: { '5010#0': 400 } }),
+      body(v, { pieces: { 'PL26110679#0': 400 } }),
     );
     expect(res.json()).toMatchObject({
       decision: 'approve',
-      differences: [{ sdoNo: '5010', lineNo: 0, expectedPieces: 800, actualPieces: 400 }],
+      differences: [{ sdoNo: 'PL26110679', lineNo: 0, expectedPieces: 800, actualPieces: 400 }],
     });
   });
 
   it('rejects with a reason: red alert to supervisor and logistics, truck back on the list', async () => {
-    const trip = await linkedTruck('WRC6630', ['5008']);
+    const trip = await linkedTruck('WRC6630', ['PL26110655']);
     const v = await view(trip.id);
     expect(
       (
@@ -199,7 +199,7 @@ describe('checking a load', () => {
   });
 
   it('refuses a reason on approve, a missing line, and an unknown reason', async () => {
-    const trip = await linkedTruck('WRC6631', ['5012']);
+    const trip = await linkedTruck('WRC6631', ['PL26110715']);
     const v = await view(trip.id);
     expect(
       (await post(`/api/checker/trips/${trip.id}/decision`, body(v, { reason: 'damaged' })))
@@ -221,7 +221,7 @@ describe('checking a load', () => {
   });
 
   it('attaches load photos to the decision', async () => {
-    const trip = await linkedTruck('WRC6632', ['5013']);
+    const trip = await linkedTruck('WRC6632', ['PL26110733']);
     const up = await h.app.inject({
       method: 'POST',
       url: '/api/photos?kind=load',
@@ -253,9 +253,9 @@ describe('checking a load', () => {
 
 describe('SDO amended after gate in', () => {
   it('shows "changed" with the line that moved, records an amber alert once, tells nobody', async () => {
-    const trip = await linkedTruck('BQA7701', ['5004']);
+    const trip = await linkedTruck('BQA7701', ['PL26110587']);
     h.clock.now = new Date(h.clock.now.getTime() + 3_600_000);
-    h.sap.amendSdoLine('5004', 0, { pieces: 30 });
+    h.sap.amendSdoLine('PL26110587', 0, { pieces: 30 });
     const before = h.notifier.sent.length;
 
     const v = await view(trip.id); // live read sees the amendment at once
@@ -275,20 +275,20 @@ describe('SDO amended after gate in', () => {
   });
 
   it('a pre-registered SDO is versioned at gate in, so an amendment is caught', async () => {
-    // BPN 2045 pre-registered with 5009 + 5010 (seed); SDO cache already holds them.
+    // BPN 2045 pre-registered with PL26110678 + PL26110679 (seed); SDO cache already holds them.
     const sap = h.sap;
     const { trip } = await gateInTruck(h, guard, { plate: 'BPN2045', cardNo: nextCard() });
     h.clock.now = new Date(h.clock.now.getTime() + 60_000);
-    sap.amendSdoLine('5009', 1, { pieces: 10 });
+    sap.amendSdoLine('PL26110678', 1, { pieces: 10 });
     const v = await view(trip.id);
-    expect(v.sdos.find((s) => s.sdoNo === '5009')).toMatchObject({ changed: true });
+    expect(v.sdos.find((s) => s.sdoNo === 'PL26110678')).toMatchObject({ changed: true });
   });
 
   it('refuses a decision on a version the checker did not see', async () => {
-    const trip = await linkedTruck('BQA7702', ['5011']);
+    const trip = await linkedTruck('BQA7702', ['PL26110702']);
     const v = await view(trip.id);
     h.clock.now = new Date(h.clock.now.getTime() + 60_000);
-    h.sap.amendSdoLine('5011', 0, { pieces: 90 });
+    h.sap.amendSdoLine('PL26110702', 0, { pieces: 90 });
     await refreshSdoCache(h.deps, h.site, { full: false });
     const res = await post(`/api/checker/trips/${trip.id}/decision`, body(v));
     expect(res.statusCode).toBe(409);
@@ -298,7 +298,7 @@ describe('SDO amended after gate in', () => {
 
 describe('SAP down', () => {
   it('shows the cached SDO lines and says so', async () => {
-    const trip = await linkedTruck('BQA7703', ['5007']);
+    const trip = await linkedTruck('BQA7703', ['PL26110641']);
     h.sap.setOffline(true);
     const v = await view(trip.id);
     h.sap.setOffline(false);

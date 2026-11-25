@@ -52,11 +52,11 @@ test('clerk matches a walk-in truck to the SDO on its CWIS ticket', async ({ pag
   const panel = page.getByTestId('trip-panel');
   await expect(panel).toContainText('Not matched yet');
 
-  // Weighbridge operator weighs it in and types SDO 5011 (mock control).
+  // Weighbridge operator weighs it in and types SDO PL26110702 (mock control).
   // The screen updates by itself (live events).
   const [trip] = await (await page.request.get('/api/clerk/trips')).json();
   const weigh = await page.request.post('/api/dev/cwis/weigh-in', {
-    data: { tripId: trip.id, sdoNos: ['5011'] },
+    data: { tripId: trip.id, sdoNos: ['PL26110702'] },
   });
   expect(weigh.ok()).toBe(true);
   await expect(panel.getByText(/^WB\d+/)).toBeVisible();
@@ -65,15 +65,15 @@ test('clerk matches a walk-in truck to the SDO on its CWIS ticket', async ({ pag
   ).toContainText('On CWIS ticket');
 
   const shortlist = page.getByRole('list', { name: 'SDO shortlist' });
-  await shortlist.getByText('SDO 5011').click();
+  await shortlist.getByText('SDO PL26110702').click();
   await page.getByRole('button', { name: /^Link/ }).click();
-  await expect(page.getByTestId('linked-5011')).toContainText('Customer Bravo Trading');
+  await expect(page.getByTestId('linked-PL26110702')).toContainText('Customer Bravo Trading');
   await expectNoSidewaysOverflow(page);
   await page.screenshot(shot('2-matched'));
   // On a phone the list is hidden while a truck is open.
   const back = page.getByRole('button', { name: 'Back to list' });
   if (await back.isVisible()) await back.click();
-  await expect(list).toContainText('SDO 5011');
+  await expect(list).toContainText('SDO PL26110702');
 });
 
 test('clerk pre-registers a truck and the guard sees it auto-match at the gate', async ({
@@ -82,7 +82,7 @@ test('clerk pre-registers a truck and the guard sees it auto-match at the gate',
   await officeLogin(page);
   await page.getByRole('tab', { name: /Pre-registered/ }).click();
   await page.getByLabel('Plate').fill('bqa 77');
-  await page.getByLabel('Search SDOs').fill('5006');
+  await page.getByLabel('Search SDOs').fill('PL26110634');
   await page.getByRole('checkbox').first().check();
   await page.getByRole('button', { name: 'Pre-register' }).click();
   await expect(page.getByText('Saved BQA 77.')).toBeVisible();
@@ -102,7 +102,7 @@ test('clerk pre-registers a truck and the guard sees it auto-match at the gate',
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signInWithPin(page, 'Entry Guard');
   await cameraSees(page, 'BQA 77');
-  await expect(page.getByTestId('prereg-chip')).toContainText('SDO 5006');
+  await expect(page.getByTestId('prereg-chip')).toContainText('SDO PL26110634');
 });
 
 test('alerts tab shows red first and clears with a reason', async ({ page }) => {
@@ -147,9 +147,9 @@ test('DO from SAP links to the truck, goes to SAP, and the checker counts agains
   await officeLogin(page);
   const list = page.getByRole('list', { name: 'Trucks on site' });
   await list.getByRole('button', { name: /BJR 9102/ }).click();
-  await page.getByRole('list', { name: 'SDO shortlist' }).getByText('SDO 5011').click();
+  await page.getByRole('list', { name: 'SDO shortlist' }).getByText('SDO PL26110702').click();
   await page.getByRole('button', { name: /^Link/ }).click();
-  await expect(page.getByTestId('linked-5011')).toBeVisible();
+  await expect(page.getByTestId('linked-PL26110702')).toBeVisible();
   await expect(page.getByText('No DO yet')).toBeVisible();
 
   // Logistics makes a part DO (half the pieces) in SAP.
@@ -167,7 +167,7 @@ test('DO from SAP links to the truck, goes to SAP, and the checker counts agains
     .getByRole('list', { name: 'Waiting for check' })
     .getByRole('button', { name: /BJR 9102/ })
     .click();
-  const line = page.getByTestId('line-5011#0');
+  const line = page.getByTestId('line-PL26110702#0');
   await expect(line).toContainText('50'); // DO: half of the SDO's 100
   await expect(line).toContainText('(SDO 100)');
   await expect(page.getByText(/· DO \d+/)).toBeVisible();

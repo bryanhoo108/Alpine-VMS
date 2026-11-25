@@ -63,7 +63,12 @@ export const authRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
           expires: new Date(exp),
         },
       );
-      return { id: user.id, displayName: user.displayName, role: user.role };
+      return {
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+        doTracking: ctx.config.doTracking,
+      };
     },
   );
 
@@ -74,6 +79,12 @@ export const authRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
 
   app.get('/api/auth/me', async (req, reply) => {
     if (!req.user) return reply.code(401).send({ error: 'NOT_SIGNED_IN' });
-    return { id: req.user.id, displayName: req.user.displayName, role: req.user.role };
+    return {
+      id: req.user.id,
+      displayName: req.user.displayName,
+      role: req.user.role,
+      /** Screens hide DOs when the VMS does not follow them (DO_TRACKING=off). */
+      doTracking: ctx.config.doTracking,
+    };
   });
 };

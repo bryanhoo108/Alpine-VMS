@@ -76,9 +76,9 @@ export interface SapSampleData {
 
 /**
  * Scenarios built in:
- * - 5001 split: delivered partly by DOs 8001 and 8002 yesterday, still open
- * - 5002 + 5003 combined: both copied into DO 8003 yesterday, still open
- * - 5014 closed (must not show as open)
+ * - PL26090245 split: delivered partly by DOs 8001 and 8002 yesterday, still open
+ * - PL26100318 + PL26100322 combined: both copied into DO 8003 yesterday, still open
+ * - PL26100401 closed (must not show as open)
  * - the rest open with no DO yet
  */
 export function sapSampleData(now: Date): SapSampleData {
@@ -110,21 +110,21 @@ export function sapSampleData(now: Date): SapSampleData {
   };
 
   const sdos: SapSdo[] = [
-    sdo('5001', 'C0001', 3, lines([ITEMS.gi50, 400], [ITEMS.gi25, 600])),
-    sdo('5002', 'C0002', 2, lines([ITEMS.gi80h, 120])),
-    sdo('5003', 'C0002', 2, lines([ITEMS.ms100, 80], [ITEMS.hs40, 200])),
-    sdo('5004', 'C0003', 2, lines([ITEMS.bk150, 40])),
-    sdo('5005', 'C0004', 1, lines([ITEMS.gi25, 300], [ITEMS.gi50, 150])),
-    sdo('5006', 'C0005', 1, lines([ITEMS.hs40, 500])),
-    sdo('5007', 'C0001', 1, lines([ITEMS.gi80h, 60], [ITEMS.ms100, 60])),
-    sdo('5008', 'C0003', 1, lines([ITEMS.gi50, 250])),
-    sdo('5009', 'C0004', 0, lines([ITEMS.bk150, 24], [ITEMS.gi80h, 30])),
-    sdo('5010', 'C0005', 0, lines([ITEMS.gi25, 800])),
-    sdo('5011', 'C0002', 0, lines([ITEMS.ms100, 100])),
-    sdo('5012', 'C0001', 0, lines([ITEMS.hs40, 150], [ITEMS.gi50, 100], [ITEMS.gi25, 100])),
-    sdo('5013', 'C0003', 0, lines([ITEMS.gi80h, 90])),
-    sdo('5014', 'C0004', 5, lines([ITEMS.gi50, 50]), 'closed'),
-    sdo('5015', 'C0005', 0, lines([ITEMS.bk150, 36])),
+    sdo('PL26090245', 'C0001', 3, lines([ITEMS.gi50, 400], [ITEMS.gi25, 600])),
+    sdo('PL26100318', 'C0002', 2, lines([ITEMS.gi80h, 120])),
+    sdo('PL26100322', 'C0002', 2, lines([ITEMS.ms100, 80], [ITEMS.hs40, 200])),
+    sdo('PL26110587', 'C0003', 2, lines([ITEMS.bk150, 40])),
+    sdo('PL26110612', 'C0004', 1, lines([ITEMS.gi25, 300], [ITEMS.gi50, 150])),
+    sdo('PL26110634', 'C0005', 1, lines([ITEMS.hs40, 500])),
+    sdo('PL26110641', 'C0001', 1, lines([ITEMS.gi80h, 60], [ITEMS.ms100, 60])),
+    sdo('PL26110655', 'C0003', 1, lines([ITEMS.gi50, 250])),
+    sdo('PL26110678', 'C0004', 0, lines([ITEMS.bk150, 24], [ITEMS.gi80h, 30])),
+    sdo('PL26110679', 'C0005', 0, lines([ITEMS.gi25, 800])),
+    sdo('PL26110702', 'C0002', 0, lines([ITEMS.ms100, 100])),
+    sdo('PL26110715', 'C0001', 0, lines([ITEMS.hs40, 150], [ITEMS.gi50, 100], [ITEMS.gi25, 100])),
+    sdo('PL26110733', 'C0003', 0, lines([ITEMS.gi80h, 90])),
+    sdo('PL26100401', 'C0004', 5, lines([ITEMS.gi50, 50]), 'closed'),
+    sdo('PL26110823', 'C0005', 0, lines([ITEMS.bk150, 36])),
   ];
 
   const dos: SapDo[] = [
@@ -133,7 +133,7 @@ export function sapSampleData(now: Date): SapSampleData {
       customerCode: 'C0001',
       createdAt: daysAgo(1, 10),
       lines: [
-        { lineNo: 0, itemCode: ITEMS.gi50.itemCode, pieces: 200, baseSdoNo: '5001', baseLineNo: 0 },
+        { lineNo: 0, itemCode: ITEMS.gi50.itemCode, pieces: 200, baseSdoNo: 'PL26090245', baseLineNo: 0 },
       ],
     },
     {
@@ -141,7 +141,7 @@ export function sapSampleData(now: Date): SapSampleData {
       customerCode: 'C0001',
       createdAt: daysAgo(1, 15),
       lines: [
-        { lineNo: 0, itemCode: ITEMS.gi25.itemCode, pieces: 300, baseSdoNo: '5001', baseLineNo: 1 },
+        { lineNo: 0, itemCode: ITEMS.gi25.itemCode, pieces: 300, baseSdoNo: 'PL26090245', baseLineNo: 1 },
       ],
     },
     {
@@ -149,8 +149,8 @@ export function sapSampleData(now: Date): SapSampleData {
       customerCode: 'C0002',
       createdAt: daysAgo(1, 11),
       lines: [
-        { lineNo: 0, itemCode: ITEMS.gi80h.itemCode, pieces: 60, baseSdoNo: '5002', baseLineNo: 0 },
-        { lineNo: 1, itemCode: ITEMS.ms100.itemCode, pieces: 40, baseSdoNo: '5003', baseLineNo: 0 },
+        { lineNo: 0, itemCode: ITEMS.gi80h.itemCode, pieces: 60, baseSdoNo: 'PL26100318', baseLineNo: 0 },
+        { lineNo: 1, itemCode: ITEMS.ms100.itemCode, pieces: 40, baseSdoNo: 'PL26100322', baseLineNo: 0 },
       ],
     },
   ];

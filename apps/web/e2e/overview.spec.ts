@@ -45,10 +45,10 @@ test('supervisor sees the live overview of a busy day and a truck timeline', asy
   const dialog = page.getByRole('dialog', { name: 'Truck timeline' });
   const timeline = dialog.getByRole('list', { name: 'Timeline' });
   await expect(timeline).toContainText('Gate in');
-  await expect(timeline).toContainText('SDO 5008 matched');
+  await expect(timeline).toContainText('SDO PL26110655 matched');
   await expect(timeline).toContainText('Load approved');
   // The weighbridge took the SDO from this truck, not from an earlier truck with the same card.
-  await expect(timeline).not.toContainText('SDO 5012');
+  await expect(timeline).not.toContainText('SDO PL26110715');
   await expect(timeline).toContainText('Weighed out');
   await expectNoSidewaysOverflow(page);
   await page.screenshot(shot('2-timeline'));

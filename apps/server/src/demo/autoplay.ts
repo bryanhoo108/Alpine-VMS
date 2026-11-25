@@ -25,7 +25,7 @@ import {
 
 export const AUTOPLAY_PREFIX = 'JQ';
 /** SDOs kept for the presenter's pre-registered trucks. */
-const RESERVED_SDOS = ['5005', '5007', '5009', '5010'];
+const RESERVED_SDOS = ['PL26110612', 'PL26110641', 'PL26110678', 'PL26110679'];
 const MAX_TRUCKS = 6;
 /** Fast-forward choices on the Live screen: 1× is one step every 20 s. */
 export const AUTOPLAY_SPEEDS = [1, 4, 10] as const;
@@ -101,7 +101,7 @@ export class AutoPlay {
     }
 
     const t = this.pick(mine);
-    const stage = stageOf(t);
+    const stage = stageOf(t, c.config.doTracking);
     let did: string;
     switch (stage) {
       case 'Not matched': {

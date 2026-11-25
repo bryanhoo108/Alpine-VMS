@@ -40,6 +40,8 @@ export async function tripExitStatus(
   siteId: string,
   trip: Trip,
   cardReturned: boolean,
+  /** DO_TRACKING: when off, a missing DO is not a reason. */
+  doTracking = true,
 ): Promise<ExitStatus> {
   const tickets = await db
     .select({ plate: weighTickets.plate, weighOutAt: weighTickets.weighOutAt })
@@ -79,7 +81,7 @@ export async function tripExitStatus(
     type: 'outbound',
     ...common,
     sdoNos,
-    sdosWithoutDo: coverage.sdosWithoutDo,
+    sdosWithoutDo: doTracking ? coverage.sdosWithoutDo : [],
     latestDecision: latest?.decision ?? null,
   });
 }
@@ -97,7 +99,12 @@ export interface ExitTruck {
   status: ExitStatus;
 }
 
-async function exitTruck(db: DbOrTx, site: Site, trip: Trip): Promise<ExitTruck> {
+async function exitTruck(
+  db: DbOrTx,
+  site: Site,
+  trip: Trip,
+  doTracking: boolean,
+): Promise<ExitTruck> {
   const [t] = trip.transporterId
     ? await db
         .select({ name: transporters.name })
@@ -111,7 +118,7 @@ async function exitTruck(db: DbOrTx, site: Site, trip: Trip): Promise<ExitTruck>
     type: trip.type,
     transporterName: t?.name ?? null,
     gateInAt: trip.gateInAt,
-    status: await tripExitStatus(db, site.id, trip, true),
+    status: await tripExitStatus(db, site.id, trip, true, doTracking),
   };
 }
 
@@ -172,13 +179,13 @@ export async function exitState(deps: ServiceDeps, site: Site): Promise<ExitStat
           readAt: read.readAt,
         }
       : null,
-    truck: match ? await exitTruck(db, site, match) : null,
+    truck: match ? await exitTruck(db, site, match, deps.config.doTracking) : null,
     onSite: onSite.map((t) => ({ id: t.id, tripNo: t.tripNo, plate: t.plateIn, type: t.type })),
   };
 }
 
 export async function exitTruckById(deps: ServiceDeps, site: Site, tripId: string) {
-  return exitTruck(deps.db, site, await onSiteTrip(deps.db, site, tripId));
+  return exitTruck(deps.db, site, await onSiteTrip(deps.db, site, tripId), deps.config.doTracking);
 }
 
 export async function exitTruckByCard(deps: ServiceDeps, site: Site, rawCardNo: string) {
@@ -252,7 +259,7 @@ export async function gateOut(deps: ServiceDeps, site: Site, userId: string, inp
       }
     }
 
-    const status = await tripExitStatus(tx, site.id, trip, cardReturned);
+    const status = await tripExitStatus(tx, site.id, trip, cardReturned, deps.config.doTracking);
 
     const read = input.plateReadId
       ? (
