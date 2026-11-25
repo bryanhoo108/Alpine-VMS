@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { passFromInput } from '../pass';
 
 /** Card numbers are compared as uppercase hex without separators. */
-export const normalizeCardNo = (raw: string) => raw.toUpperCase().replace(/[^0-9A-F]/g, '');
+export const normalizeCardNo = (raw: string) => raw.toUpperCase().replace(/[^0-9A-Z]/g, '');
 
 interface NdefReader {
   scan(opts?: { signal?: AbortSignal }): Promise<void>;
@@ -42,11 +43,13 @@ export function useCardReader(active: boolean, onCard: (cardNo: string) => void)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.tagName === 'INPUT') return;
-      const now = performance.now();
-      if (now - last > 80) buffer = '';
+      // Event time, not handler time: a busy tablet may run handlers late.
+      const now = e.timeStamp;
+      if (now - last > 100) buffer = '';
       last = now;
       if (e.key === 'Enter') {
-        if (buffer.length >= 6) ref.current(normalizeCardNo(buffer));
+        // A USB QR scanner types the whole pass QR; an RFID reader the plain number.
+        if (buffer.length >= 6) ref.current(passFromInput(buffer));
         buffer = '';
       } else if (e.key.length === 1) {
         buffer += e.key;

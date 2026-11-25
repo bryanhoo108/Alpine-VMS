@@ -19,7 +19,7 @@ async function gateIn(page: Page, plate: string, purpose: 'Collect' | 'Deliver',
   if (company) await page.getByRole('button', { name: company }).click();
   await page.getByRole('button', { name: 'Photo' }).click();
   await page.getByRole('button', { name: 'Photo' }).click();
-  await page.getByRole('button', { name: 'Test card' }).click();
+  await page.getByRole('button', { name: 'Test pass' }).click();
   await expect(page.getByTestId('gate-in-done')).toContainText(plate);
   await page.getByTestId('gate-in-done').click();
 }
@@ -38,7 +38,7 @@ async function gateOut(page: Page, plate: string, level: 'green' | 'amber' | 're
   await cameraSees(page, plate, 'exit');
   await expect(page.getByTestId('exit-status')).toHaveAttribute('data-level', level);
   await expectGuardLayout(page);
-  await page.getByRole('button', { name: 'Test card' }).click();
+  await page.getByRole('button', { name: 'Test pass' }).click();
   await expect(page.getByTestId('gate-out-done')).toHaveAttribute('data-level', level);
   await page.getByTestId('gate-out-done').click();
 }

@@ -3,7 +3,7 @@
  * sees green (go), amber (check) or red (call supervisor, with alarm), with
  * the reasons in 1-3 words. The card tap closes the trip:
  *   1. driver hands the card: guard taps it on the tablet → OUT
- *   or: No card → Yes (card lost, red)
+ *   or: No pass → Yes (pass lost, red)
  * The truck is never kept in by the system; amber and red alert the supervisor.
  */
 import {
@@ -37,6 +37,8 @@ import {
 } from '../api';
 import { BigButton } from '../components/BigButton';
 import { PlateCard } from '../components/PlateCard';
+import { QrScanner } from '../components/QrScanner';
+import { passFromQr } from '../pass';
 import { useAlarm } from '../hooks/useAlarm';
 import { useCardReader } from '../hooks/useCardReader';
 import { useLiveEvents } from '../hooks/useLiveEvents';
@@ -56,11 +58,11 @@ type Stage =
   | 'staff';
 
 const CARD_ERRORS: Record<string, string> = {
-  CARD_ON_OTHER_TRIP: 'Wrong card',
-  CARD_NOT_ISSUED: 'Wrong card',
-  CARD_UNKNOWN: 'Card not known',
-  CARD_NOT_ON_TRIP: 'Card not in use',
-  CARD_NOT_ON_VISIT: 'Card not in use',
+  CARD_ON_OTHER_TRIP: 'Wrong pass',
+  CARD_NOT_ISSUED: 'Wrong pass',
+  CARD_UNKNOWN: 'Pass not known',
+  CARD_NOT_ON_TRIP: 'Pass not in use',
+  CARD_NOT_ON_VISIT: 'Pass not in use',
 };
 
 const DONE_SECONDS = 5;
@@ -204,7 +206,7 @@ export function GateOut({ mock }: { mock: boolean }) {
     } catch (e) {
       const code = e instanceof ApiError ? e.code : '';
       if (code !== 'CARD_ON_VISIT') {
-        setError(CARD_ERRORS[code] ?? 'Card not known');
+        setError(CARD_ERRORS[code] ?? 'Pass not known');
         return;
       }
       // A visitor group's card: one tap and they are out.
@@ -213,7 +215,7 @@ export function GateOut({ mock }: { mock: boolean }) {
         setVisit(found);
         await submitVisit(found.id, cardNo);
       } catch (e2) {
-        setError(CARD_ERRORS[e2 instanceof ApiError ? e2.code : ''] ?? 'Card not known');
+        setError(CARD_ERRORS[e2 instanceof ApiError ? e2.code : ''] ?? 'Pass not known');
       }
     }
   };
@@ -291,7 +293,7 @@ export function GateOut({ mock }: { mock: boolean }) {
       <RotateCcw className="size-10 shrink-0" />
       <div>
         <div className="text-2xl font-extrabold">
-          {error === 'Not saved' ? 'Try again' : "Use this truck's card"}
+          {error === 'Not saved' ? 'Try again' : "Use this truck's pass"}
         </div>
         <div className="text-xl font-semibold">{error}</div>
       </div>
@@ -388,7 +390,7 @@ export function GateOut({ mock }: { mock: boolean }) {
         <div className="flex h-full min-h-0 flex-col gap-3">
           <div className="flex items-center gap-4 rounded-2xl bg-bad px-5 py-4 text-white">
             <CreditCard className="size-12" />
-            <div className="text-4xl font-extrabold">No card?</div>
+            <div className="text-4xl font-extrabold">No pass?</div>
             <div className="ml-auto truncate text-3xl font-black">{visit.name}</div>
           </div>
           <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
@@ -401,7 +403,7 @@ export function GateOut({ mock }: { mock: boolean }) {
             <BigButton
               tone="bad"
               icon={X}
-              label="Yes, no card"
+              label="Yes, no pass"
               disabled={busy}
               onClick={() => void submitVisit(visit.id, null)}
             />
@@ -446,13 +448,13 @@ export function GateOut({ mock }: { mock: boolean }) {
         right={
           <div className="flex h-full min-h-0 flex-col gap-3">
             {errorBanner}
-            <CardBox />
+            <PassBox onPass={(c) => void onCard(c)} />
             <div className="grid grid-cols-2 gap-3">
               <BigButton
                 size="md"
                 tone="bad"
                 icon={X}
-                label="No card"
+                label="No pass"
                 onClick={() => setStage('visit-no-card')}
               />
               <BigButton size="md" tone="plain" icon={ArrowLeft} label="Cancel" onClick={cancel} />
@@ -462,7 +464,7 @@ export function GateOut({ mock }: { mock: boolean }) {
                 size="sm"
                 tone="plain"
                 icon={CreditCard}
-                label="Test card"
+                label="Test pass"
                 disabled={busy}
                 onClick={() => void testVisitCard()}
               />
@@ -495,7 +497,7 @@ export function GateOut({ mock }: { mock: boolean }) {
         right={
           <div className="flex h-full min-h-0 flex-col gap-3">
             {errorBanner}
-            <CardBox />
+            <PassBox onPass={(c) => void onCard(c)} />
             <div className="grid grid-cols-2 gap-3">
               <BigButton
                 size="md"
@@ -541,7 +543,7 @@ export function GateOut({ mock }: { mock: boolean }) {
         right={
           <div className="flex h-full min-h-0 flex-col gap-3">
             {errorBanner}
-            <CardBox />
+            <PassBox onPass={(c) => void onCard(c)} />
             <BigButton
               size="md"
               tone="action"
@@ -582,7 +584,7 @@ export function GateOut({ mock }: { mock: boolean }) {
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex items-center gap-4 rounded-2xl bg-bad px-5 py-4 text-white">
           <CreditCard className="size-12" />
-          <div className="text-4xl font-extrabold">No card?</div>
+          <div className="text-4xl font-extrabold">No pass?</div>
           <div className="ml-auto font-mono text-3xl font-black">{formatPlate(truck.plate)}</div>
         </div>
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
@@ -590,7 +592,7 @@ export function GateOut({ mock }: { mock: boolean }) {
           <BigButton
             tone="bad"
             icon={X}
-            label="Yes, no card"
+            label="Yes, no pass"
             disabled={busy}
             onClick={() => void submit(truck.id, null)}
           />
@@ -633,13 +635,13 @@ export function GateOut({ mock }: { mock: boolean }) {
             </div>
           </div>
           {errorBanner}
-          <CardBox />
+          <PassBox onPass={(c) => void onCard(c)} />
           <div className="grid grid-cols-2 gap-3">
             <BigButton
               size="md"
               tone="bad"
               icon={X}
-              label="No card"
+              label="No pass"
               onClick={() => setStage('no-card')}
             />
             <BigButton size="md" tone="plain" icon={ArrowLeft} label="Cancel" onClick={cancel} />
@@ -649,7 +651,7 @@ export function GateOut({ mock }: { mock: boolean }) {
               size="sm"
               tone="plain"
               icon={CreditCard}
-              label="Test card"
+              label="Test pass"
               disabled={busy}
               onClick={() => void testCard()}
             />
@@ -660,14 +662,20 @@ export function GateOut({ mock }: { mock: boolean }) {
   );
 }
 
-function CardBox() {
+/** Live camera reading the gate pass (decision G1); an NFC or USB reader works too. */
+function PassBox({ onPass }: { onPass: (cardNo: string) => void }) {
   return (
     <div
       data-testid="tap-card"
-      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-4 border-dashed border-action bg-blue-50 p-3 text-center portrait:min-h-28 portrait:flex-none"
+      className="min-h-0 flex-1 overflow-hidden rounded-2xl border-4 border-action portrait:min-h-44 portrait:flex-none"
     >
-      <CreditCard className="size-20 text-action portrait:size-12" />
-      <div className="text-4xl font-extrabold portrait:text-3xl">Tap card</div>
+      <QrScanner
+        label="Scan pass"
+        onCode={(text) => {
+          const cardNo = passFromQr(text);
+          if (cardNo) onPass(cardNo);
+        }}
+      />
     </div>
   );
 }

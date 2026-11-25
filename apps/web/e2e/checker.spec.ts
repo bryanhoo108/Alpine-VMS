@@ -66,7 +66,7 @@ test('normal load: All OK, Photo, Approve', async ({ page }) => {
 test('card tap opens the truck; count a short line; reject as damaged', async ({ page }) => {
   const { cardNo } = await truckReady(page, 'WRC 6630', ['PL26110655']);
   await signInWithPin(page, 'Checker 2');
-  await expect(page.getByText('Tap card')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Scan QR' })).toBeVisible();
   // A USB/NFC reader types the card number and Enter.
   await page.keyboard.type(cardNo, { delay: 5 });
   await page.keyboard.press('Enter');
@@ -114,5 +114,5 @@ test('unknown card says so', async ({ page }) => {
   await signInWithPin(page, 'Checker 1');
   await page.keyboard.type('04FFFFFFFFFFFF', { delay: 5 });
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('alert')).toContainText('Card not on a truck');
+  await expect(page.getByRole('alert')).toContainText('Pass not on a truck');
 });

@@ -235,7 +235,10 @@ function TripPanel({
     const q = search.trim().toLowerCase();
     const all = trip?.shortlist ?? [];
     return q
-      ? all.filter((s) => s.sdoNo.includes(q) || (s.customerName ?? '').toLowerCase().includes(q))
+      ? all.filter(
+          (s) =>
+            s.sdoNo.toLowerCase().includes(q) || (s.customerName ?? '').toLowerCase().includes(q),
+        )
       : all.slice(0, 8);
   }, [trip, search]);
 

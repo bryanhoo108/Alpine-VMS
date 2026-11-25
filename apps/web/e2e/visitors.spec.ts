@@ -93,7 +93,8 @@ test.describe('gate in', () => {
     // Only 3 of the 4 came today.
     await page.getByRole('button', { name: 'Fewer people' }).click();
     await page.getByRole('button', { name: 'Photo' }).click();
-    await expect(page.getByTestId('count-ic')).toHaveText('1');
+    // After the IC photo the camera reads the group's gate pass.
+    await expect(page.getByText('Scan pass').first()).toBeVisible();
     const ic = page.getByTestId('ic-read');
     await expect(ic).toContainText('5678', { timeout: 15_000 });
     // Not the person in front of the guard: "Wrong" keeps the read off the record.
@@ -101,7 +102,7 @@ test.describe('gate in', () => {
     await expect(ic).toHaveAttribute('data-rejected', 'true');
     await expectGuardLayout(page);
     await page.screenshot(shot('3-photo'));
-    await page.getByRole('button', { name: 'Test card' }).click();
+    await page.getByRole('button', { name: 'Test pass' }).click();
 
     const done = page.getByTestId('visit-in-done');
     await expect(done).toContainText('Sample Contractor Lead');
@@ -118,7 +119,7 @@ test.describe('gate in', () => {
     await expectGuardLayout(page);
     await page.getByRole('button', { name: 'Test QR' }).click();
     await expect(page.getByTestId('group-size')).toBeVisible();
-    await page.getByRole('button', { name: 'Test card' }).click();
+    await page.getByRole('button', { name: 'Test pass' }).click();
     await expect(page.getByTestId('visit-in-done')).toContainText('IN');
   });
 
@@ -141,7 +142,7 @@ test.describe('gate in', () => {
     await expectGuardLayout(page);
     await page.screenshot(shot('6-call-host'));
     await page.getByRole('button', { name: 'No answer' }).click();
-    await page.getByRole('button', { name: 'Test card' }).click();
+    await page.getByRole('button', { name: 'Test pass' }).click();
     const done = page.getByTestId('visit-in-done');
     await expect(done).toContainText('Walk In Welder');
     await expect(done).toContainText('No host OK');
@@ -225,8 +226,8 @@ test.describe('gate out and muster', () => {
     await expect(page.getByTestId('exit-group')).toHaveText('2');
     await expectGuardLayout(page);
     await page.screenshot(shot('9-visit-exit'));
-    await page.getByRole('button', { name: 'No card' }).click();
-    await page.getByRole('button', { name: 'Yes, no card' }).click();
+    await page.getByRole('button', { name: 'No pass' }).click();
+    await page.getByRole('button', { name: 'Yes, no pass' }).click();
     await expect(page.getByTestId('visit-out-done')).toHaveAttribute('data-level', 'red');
   });
 
@@ -240,7 +241,7 @@ test.describe('gate out and muster', () => {
     await expectGuardLayout(page);
     await page.getByRole('button', { name: 'Visitor' }).click();
     await expect(page.getByText('Car Visitor')).toBeVisible();
-    await page.getByRole('button', { name: 'Test card' }).click();
+    await page.getByRole('button', { name: 'Test pass' }).click();
     await expect(page.getByTestId('visit-out-done')).toContainText('Car Visitor');
   });
 

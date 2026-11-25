@@ -10,7 +10,7 @@ interface CommonExitInput {
   lprPlate: string;
   /** Plates on the CWIS tickets linked to this trip. */
   cwisPlates: readonly string[];
-  /** False when the guard taps "No card" at gate out. */
+  /** False when the guard taps "No pass" at gate out. */
   cardReturned: boolean;
 }
 

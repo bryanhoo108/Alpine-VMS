@@ -139,7 +139,7 @@ export async function tripTimeline(db: DbOrTx, site: Site, tripId: string) {
           ? `camera read ${entryRead.plateText}, corrected to ${trip.plateIn}`
           : `camera read ${trip.plateIn}`
         : 'plate entered by guard',
-      row.cardNo ? `card ${row.cardNo}` : null,
+      row.cardNo ? `pass ${row.cardNo}` : null,
       `${photoCount} photo${photoCount === 1 ? '' : 's'}`,
       row.transporterName,
       row.preRegDate ? `pre-registered for ${row.preRegDate}` : 'not pre-registered',
@@ -297,7 +297,7 @@ export async function tripTimeline(db: DbOrTx, site: Site, tripId: string) {
       kind: 'gate_out',
       title: `Gate out · ${level === 'green' ? 'all done' : level === 'amber' ? 'with checks' : 'with problems'}`,
       detail: [
-        trip.cardReturned ? 'card returned' : 'card NOT returned',
+        trip.cardReturned ? 'pass returned' : 'pass NOT returned',
         `${Math.round((trip.gateOutAt.getTime() - trip.gateInAt.getTime()) / 60_000)} min inside`,
       ].join(' · '),
       tone: level === 'green' ? 'ok' : level === 'amber' ? 'warn' : 'bad',

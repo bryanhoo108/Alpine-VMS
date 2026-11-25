@@ -1,4 +1,6 @@
+import { asc, eq } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
+import { cards } from '../db/schema.js';
 import type { AppContext } from '../app.js';
 import { currentUser, requireRole } from '../auth/session.js';
 import {
@@ -55,6 +57,15 @@ export const clerkRoutes: FastifyPluginAsync<AppContext> = async (app, ctx) => {
   );
 
   app.get('/api/overview', office, () => overview(ctx, ctx.site));
+
+  /** Gate passes for printing and the stock count (decision G1). */
+  app.get('/api/cards', office, () =>
+    ctx.db
+      .select({ cardNo: cards.cardNo, status: cards.status })
+      .from(cards)
+      .where(eq(cards.siteId, ctx.site.id))
+      .orderBy(asc(cards.cardNo)),
+  );
   app.get('/api/clerk/lists', office, () => clerkLists(ctx, ctx.site));
   app.get('/api/clerk/tickets/unlinked', office, () => unlinkedTickets(ctx.db, ctx.site.id));
 

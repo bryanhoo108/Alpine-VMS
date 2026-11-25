@@ -8,6 +8,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Camera,
   CreditCard,
   HardHat,
   IdCard,
@@ -37,6 +38,7 @@ import { IcReadChip, useIcRead } from '../components/IcRead';
 import { PAGE, Pager } from '../components/Pager';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { QrScanner } from '../components/QrScanner';
+import { passFromQr } from '../pass';
 import { TwoPane } from '../components/TwoPane';
 import { useAlarm } from '../hooks/useAlarm';
 import { useCardReader } from '../hooks/useCardReader';
@@ -61,9 +63,9 @@ interface Visitor {
 type Stage = 'start' | 'scan' | 'form' | 'host' | 'call' | 'photo' | 'done';
 
 const CARD_ERRORS: Record<string, string> = {
-  CARD_IN_USE: 'Card in use',
-  CARD_LOST: 'Card lost',
-  CARD_UNKNOWN: 'Card not known',
+  CARD_IN_USE: 'Pass in use',
+  CARD_LOST: 'Pass lost',
+  CARD_UNKNOWN: 'Pass not known',
 };
 const SCAN_ERRORS: Record<string, string> = {
   NOT_AN_INVITE: 'Not our QR',
@@ -90,6 +92,8 @@ export function VisitorIn({
   const [stage, setStage] = useState<Stage>('start');
   const [v, setV] = useState<Visitor | null>(null);
   const [photos, setPhotos] = useState(0);
+  /** The guard asked for another photo instead of scanning the pass. */
+  const [morePhotos, setMorePhotos] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<VisitInResponse | null>(null);
@@ -158,6 +162,7 @@ export function VisitorIn({
 
   const onPhoto = (blob: Blob) => {
     setPhotos((n) => n + 1);
+    setMorePhotos(false);
     const id = api.upload<{ id: string }>('/api/photos?kind=ic', blob).then((r) => r.id);
     uploads.current.push(id);
     ic.read(id);
@@ -343,16 +348,29 @@ export function VisitorIn({
   }
 
   if (stage === 'photo') {
+    // IC photo taken: the camera reads the group's gate pass next (decision G1).
+    const scanning = photos > 0 && !morePhotos;
     return (
       <TwoPane
         left={
-          <PhotoCapture
-            label="IC"
-            icon={IdCard}
-            cardGuide
-            badges={[{ icon: IdCard, count: photos, testId: 'count-ic' }]}
-            onPhoto={onPhoto}
-          />
+          scanning ? (
+            <QrScanner
+              label="Gate pass"
+              onCode={(text) => {
+                const cardNo = passFromQr(text);
+                if (cardNo) void submit(cardNo);
+                else setError('Not a gate pass');
+              }}
+            />
+          ) : (
+            <PhotoCapture
+              label="IC"
+              icon={IdCard}
+              cardGuide
+              badges={[{ icon: IdCard, count: photos, testId: 'count-ic' }]}
+              onPhoto={onPhoto}
+            />
+          )
         }
         right={
           <div className="flex h-full min-h-0 flex-col gap-3">
@@ -381,28 +399,36 @@ export function VisitorIn({
             <GroupStepper value={v.groupSize} onChange={(n) => setV({ ...v, groupSize: n })} />
             {error && (
               <ProblemBar
-                title={error === 'Not saved' ? 'Try again' : 'Use another card'}
+                title={error === 'Not saved' ? 'Try again' : 'Use another pass'}
                 text={error}
               />
             )}
             <div
               data-testid="tap-card"
-              className={`flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-4 border-dashed p-3 text-center ${photos > 0 ? 'border-action bg-blue-50' : 'border-slate-300 bg-panel'}`}
+              className={`flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-4 border-dashed p-3 text-center ${scanning ? 'border-action bg-blue-50' : 'border-slate-300 bg-panel'}`}
             >
-              <CreditCard
-                className={`size-16 ${photos > 0 ? 'animate-pulse text-action' : 'text-muted'}`}
+              <QrCode
+                className={`size-16 ${scanning ? 'animate-pulse text-action' : 'text-muted'}`}
               />
-              <div className="text-3xl font-extrabold">{busy ? 'Saving…' : 'Tap card'}</div>
-              {nfc === 'blocked' && (
-                <div className="text-lg text-bad">NFC is off on this tablet</div>
-              )}
+              <div className="text-3xl font-extrabold">
+                {busy ? 'Saving…' : scanning ? 'Scan pass' : 'IC photo first'}
+              </div>
             </div>
+            {scanning && (
+              <BigButton
+                size="sm"
+                tone="plain"
+                icon={Camera}
+                label="Photo again"
+                onClick={() => setMorePhotos(true)}
+              />
+            )}
             {mock && (
               <BigButton
                 size="sm"
                 tone="plain"
                 icon={CreditCard}
-                label="Test card"
+                label="Test pass"
                 onClick={() => void testCard()}
                 disabled={busy}
               />

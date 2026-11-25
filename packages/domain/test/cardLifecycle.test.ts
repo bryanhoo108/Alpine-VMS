@@ -4,6 +4,8 @@ import {
   issueCard,
   markCardLost,
   normalizeCardNo,
+  parsePassQr,
+  passQrText,
   recoverCard,
   type Card,
 } from '../src/cardLifecycle.js';
@@ -61,7 +63,26 @@ describe('card lifecycle', () => {
   });
 });
 
+describe('QR gate pass', () => {
+  it('reads the pass number back from its QR', () => {
+    expect(passQrText('gp-0007')).toBe('APMVMS-PASS:GP0007');
+    expect(parsePassQr(passQrText('GP0007'))).toBe('GP0007');
+    expect(parsePassQr(' apmvms-pass:gp0007 ')).toBe('GP0007');
+  });
+
+  it('is not fooled by other QR codes', () => {
+    expect(parsePassQr('APMVMS:DEMV2345')).toBeNull(); // visitor invite
+    expect(parsePassQr('https://example.com')).toBeNull();
+    expect(parsePassQr('GP0007')).toBeNull();
+    expect(parsePassQr('APMVMS-PASS:')).toBeNull();
+  });
+});
+
 describe('normalizeCardNo', () => {
+  it('keeps letters, so printed pass numbers work', () => {
+    expect(normalizeCardNo('gp-0007')).toBe('GP0007');
+  });
+
   it('reads NFC serials and USB reader input the same way', () => {
     expect(normalizeCardNo('04:a1:b2:c3:00:00:01')).toBe('04A1B2C3000001');
     expect(normalizeCardNo(' 04a1b2c3000001 ')).toBe('04A1B2C3000001');

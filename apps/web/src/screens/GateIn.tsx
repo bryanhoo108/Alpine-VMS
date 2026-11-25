@@ -9,7 +9,9 @@
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Building2,
+  Camera,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -18,9 +20,9 @@ import {
   IdCard,
   Keyboard,
   PackageOpen,
+  QrCode,
   RotateCcw,
   SkipForward,
-  BadgeCheck,
   Truck,
   UserRound,
   X,
@@ -39,6 +41,8 @@ import { IcReadChip, useIcRead } from '../components/IcRead';
 import { PAGE, Pager } from '../components/Pager';
 import { TwoPane } from '../components/TwoPane';
 import { PhotoCapture } from '../components/PhotoCapture';
+import { QrScanner } from '../components/QrScanner';
+import { passFromQr } from '../pass';
 import { PlateCard } from '../components/PlateCard';
 import { PlateKeyboard } from '../components/PlateKeyboard';
 import { OkBanner, StatusBanner } from '../components/StatusBanner';
@@ -80,9 +84,9 @@ type Stage =
 
 /** Card problems: the guard just uses another card. Not a supervisor matter. */
 const CARD_ERRORS: Record<string, string> = {
-  CARD_IN_USE: 'Card in use',
-  CARD_LOST: 'Card lost',
-  CARD_UNKNOWN: 'Card not known',
+  CARD_IN_USE: 'Pass in use',
+  CARD_LOST: 'Pass lost',
+  CARD_UNKNOWN: 'Pass not known',
 };
 
 const DONE_SECONDS = 5;
@@ -95,6 +99,8 @@ export function GateIn({ mock }: { mock: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<GateInResponse | null>(null);
+  /** The guard asked for more photos instead of scanning the pass. */
+  const [morePhotos, setMorePhotos] = useState(false);
   const uploads = useRef<Promise<string>[]>([]);
   const ic = useIcRead();
   const clearIc = ic.clear;
@@ -111,6 +117,7 @@ export function GateIn({ mock }: { mock: boolean }) {
     setPhotos({ ic: 0, document: 0 });
     setError(null);
     setResult(null);
+    setMorePhotos(false);
     uploads.current = [];
     clearIc();
     // Drop the old state so the waiting screen never re-opens a used read.
@@ -247,6 +254,7 @@ export function GateIn({ mock }: { mock: boolean }) {
 
   const onPhoto = (kind: PhotoKind, blob: Blob) => {
     setPhotos((c) => ({ ...c, [kind]: c[kind] + 1 }));
+    setMorePhotos(false);
     const id = api.upload<{ id: string }>(`/api/photos?kind=${kind}`, blob).then((r) => r.id);
     uploads.current.push(id);
     if (kind === 'ic') ic.read(id);
@@ -465,19 +473,32 @@ export function GateIn({ mock }: { mock: boolean }) {
   if (stage === 'photos') {
     const step: PhotoKind = photos.ic === 0 ? 'ic' : 'document';
     const ready = photos.ic > 0 && photos.document > 0;
+    // Photos done: the camera reads the gate pass instead (decision G1). No extra tap.
+    const scanning = ready && !morePhotos;
     return (
       <TwoPane
         left={
-          <PhotoCapture
-            label={step === 'ic' ? 'IC' : 'Documents'}
-            cardGuide={step === 'ic'}
-            icon={step === 'ic' ? IdCard : FileText}
-            badges={[
-              { icon: IdCard, count: photos.ic, testId: 'count-ic' },
-              { icon: FileText, count: photos.document, testId: 'count-doc' },
-            ]}
-            onPhoto={(blob) => onPhoto(step, blob)}
-          />
+          scanning ? (
+            <QrScanner
+              label="Gate pass"
+              onCode={(text) => {
+                const cardNo = passFromQr(text);
+                if (cardNo) void submit(cardNo);
+                else setError('Not a gate pass');
+              }}
+            />
+          ) : (
+            <PhotoCapture
+              label={step === 'ic' ? 'IC' : 'Documents'}
+              cardGuide={step === 'ic'}
+              icon={step === 'ic' ? IdCard : FileText}
+              badges={[
+                { icon: IdCard, count: photos.ic, testId: 'count-ic' },
+                { icon: FileText, count: photos.document, testId: 'count-doc' },
+              ]}
+              onPhoto={(blob) => onPhoto(step, blob)}
+            />
+          )
         }
         right={
           <div className="flex h-full min-h-0 flex-col gap-3">
@@ -514,7 +535,7 @@ export function GateIn({ mock }: { mock: boolean }) {
                 <RotateCcw className="size-10 shrink-0" />
                 <div className="min-w-0">
                   <div className="text-2xl font-extrabold">
-                    {error === 'Not saved' ? 'Try again' : 'Use another card'}
+                    {error === 'Not saved' ? 'Try again' : 'Use another pass'}
                   </div>
                   <div className="text-xl font-semibold">{error}</div>
                 </div>
@@ -522,22 +543,31 @@ export function GateIn({ mock }: { mock: boolean }) {
             )}
             <div
               data-testid="tap-card"
-              className={`flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-2xl border-4 border-dashed p-4 text-center ${ready ? 'border-action bg-blue-50' : 'border-slate-300 bg-panel'}`}
+              className={`flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-2xl border-4 border-dashed p-4 text-center ${scanning ? 'border-action bg-blue-50' : 'border-slate-300 bg-panel'}`}
             >
-              <CreditCard
-                className={`size-24 ${ready ? 'animate-pulse text-action' : 'text-muted'}`}
+              <QrCode
+                className={`size-24 ${scanning ? 'animate-pulse text-action' : 'text-muted'}`}
               />
-              <div className="text-4xl font-extrabold">{busy ? 'Saving…' : 'Tap card'}</div>
-              {nfc === 'blocked' && (
-                <div className="text-lg text-bad">NFC is off on this tablet</div>
-              )}
+              <div className="text-4xl font-extrabold">
+                {busy ? 'Saving…' : scanning ? 'Scan pass' : 'Photos first'}
+              </div>
+              {scanning && <div className="text-xl text-muted">Give the driver a gate pass</div>}
             </div>
+            {scanning && (
+              <BigButton
+                size="sm"
+                tone="plain"
+                icon={Camera}
+                label="More photos"
+                onClick={() => setMorePhotos(true)}
+              />
+            )}
             {mock && (
               <BigButton
                 size="sm"
                 tone="plain"
                 icon={CreditCard}
-                label="Test card"
+                label="Test pass"
                 onClick={() => void testCard()}
                 disabled={busy}
               />

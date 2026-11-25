@@ -15,7 +15,9 @@ import {
   CreditCard,
   Hash,
   Image,
+  List,
   PackageX,
+  QrCode,
   RotateCcw,
   ShieldAlert,
   ThumbsDown,
@@ -37,6 +39,8 @@ import { BigButton } from '../components/BigButton';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAlarm } from '../hooks/useAlarm';
 import { useCardReader } from '../hooks/useCardReader';
+import { QrScanner } from '../components/QrScanner';
+import { passFromQr } from '../pass';
 import { useLiveEvents } from '../hooks/useLiveEvents';
 import { formatPlate } from '../plate';
 
@@ -103,6 +107,8 @@ function Waiting({ onOpen }: { onOpen: (tripId: string) => void }) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [page, setPage] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** The phone camera is reading the driver's gate pass. */
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(() => {
     api
@@ -119,7 +125,7 @@ function Waiting({ onOpen }: { onOpen: (tripId: string) => void }) {
     if (e.type === 'trip_changed' || e.type === 'connected') load();
   });
 
-  useCardReader(true, async (cardNo) => {
+  const openByPass = async (cardNo: string) => {
     setError(null);
     try {
       const { tripId } = await api.get<{ tripId: string }>(
@@ -127,18 +133,59 @@ function Waiting({ onOpen }: { onOpen: (tripId: string) => void }) {
       );
       onOpen(tripId);
     } catch {
-      setError('Card not on a truck');
+      setError('Pass not on a truck');
     }
-  });
+  };
+  useCardReader(true, (cardNo) => void openByPass(cardNo));
+
+  if (scanning) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        {error && (
+          <div
+            role="alert"
+            className="rounded-2xl bg-warn px-5 py-3 text-2xl font-extrabold text-white"
+          >
+            {error}
+          </div>
+        )}
+        <div className="min-h-0 flex-1">
+          <QrScanner
+            label="Driver's pass"
+            onCode={(text) => {
+              const cardNo = passFromQr(text);
+              if (cardNo) void openByPass(cardNo);
+              else setError('Not a gate pass');
+            }}
+          />
+        </div>
+        <BigButton
+          size="md"
+          tone="plain"
+          icon={List}
+          label="Pick from list"
+          onClick={() => {
+            setError(null);
+            setScanning(false);
+          }}
+        />
+      </div>
+    );
+  }
 
   const pages = Math.max(1, Math.ceil(queue.length / PAGE));
   const shown = queue.slice(page * PAGE, page * PAGE + PAGE);
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex items-center gap-3 rounded-2xl border-4 border-dashed border-action bg-blue-50 px-4 py-3">
-        <CreditCard className="size-12 shrink-0 text-action" />
-        <div className="text-3xl font-extrabold">Tap card</div>
-        <div className="ml-auto text-xl font-bold text-muted">or pick a truck</div>
+      <div className="flex items-center gap-3">
+        <BigButton
+          className="flex-1"
+          size="md"
+          icon={QrCode}
+          label="Scan QR"
+          onClick={() => setScanning(true)}
+        />
+        <div className="text-xl font-bold text-muted">or pick a truck</div>
       </div>
       {error && (
         <div

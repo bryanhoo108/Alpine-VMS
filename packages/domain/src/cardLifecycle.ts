@@ -7,11 +7,30 @@
 export type CardStatus = 'free' | 'issued' | 'lost';
 
 /**
- * Card numbers are the card's serial as uppercase hex, no separators.
- * NFC tablets report "04:a1:b2:…"; USB readers type it plain.
+ * Gate pass numbers: upper case letters and digits, no separators. A QR pass
+ * carries its printed number ("GP0007"); an RFID card its serial, which NFC
+ * tablets report as "04:a1:b2:…" and USB readers type plain (decision G1).
  */
 export function normalizeCardNo(raw: string): string {
-  return raw.toUpperCase().replace(/[^0-9A-F]/g, '');
+  return raw.toUpperCase().replace(/[^0-9A-Z]/g, '');
+}
+
+/** What a QR gate pass holds: a prefix so other QR codes are not taken for passes. */
+export const PASS_QR_PREFIX = 'APMVMS-PASS:';
+
+export function passQrText(cardNo: string): string {
+  return `${PASS_QR_PREFIX}${normalizeCardNo(cardNo)}`;
+}
+
+/**
+ * The pass number from a scanned QR, or null when the QR is not a gate pass
+ * (a visitor invite, a product label, a web link).
+ */
+export function parsePassQr(text: string): string | null {
+  const raw = text.trim().toUpperCase();
+  if (!raw.startsWith(PASS_QR_PREFIX)) return null;
+  const cardNo = normalizeCardNo(raw.slice(PASS_QR_PREFIX.length));
+  return cardNo.length >= 3 && cardNo.length <= 32 ? cardNo : null;
 }
 
 export interface Card {

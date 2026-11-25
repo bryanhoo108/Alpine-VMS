@@ -1,4 +1,3 @@
-import jsQR from 'jsqr';
 import { Camera, QrCode } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -16,7 +15,14 @@ declare global {
  * where there is one (Chrome on Android), else the bundled jsQR decoder.
  * Calls onCode once per new code; the parent decides what it means.
  */
-export function QrScanner({ onCode }: { onCode: (text: string) => void }) {
+export function QrScanner({
+  onCode,
+  label = 'Show QR',
+}: {
+  onCode: (text: string) => void;
+  /** Shown on the camera view, e.g. "Show QR" or "Gate pass". */
+  label?: string;
+}) {
   const video = useRef<HTMLVideoElement>(null);
   const [live, setLive] = useState<'starting' | 'on' | 'off'>('starting');
   const last = useRef<string | null>(null);
@@ -31,6 +37,19 @@ export function QrScanner({ onCode }: { onCode: (text: string) => void }) {
       ? new window.BarcodeDetector({ formats: ['qr_code'] })
       : null;
     const canvas = document.createElement('canvas');
+    // jsQR runs in a worker; one frame at a time.
+    const worker = detector
+      ? null
+      : new Worker(new URL('./qrWorker.ts', import.meta.url), { type: 'module' });
+    const decode = (img: ImageData) =>
+      new Promise<string | null>((resolve) => {
+        if (!worker) return resolve(null);
+        worker.onmessage = (e: MessageEvent<string | null>) => resolve(e.data);
+        worker.onerror = () => resolve(null);
+        worker.postMessage({ data: img.data.buffer, width: img.width, height: img.height }, [
+          img.data.buffer,
+        ]);
+      });
 
     const scan = async () => {
       const v = video.current;
@@ -48,11 +67,12 @@ export function QrScanner({ onCode }: { onCode: (text: string) => void }) {
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             ctx?.drawImage(v, 0, 0, canvas.width, canvas.height);
             const img = ctx?.getImageData(0, 0, canvas.width, canvas.height);
-            text = img ? (jsQR(img.data, img.width, img.height)?.data ?? null) : null;
+            text = img ? await decode(img) : null;
           }
         } catch {
           text = null;
         }
+        if (stopped) return;
         if (text && text !== last.current) {
           last.current = text;
           handler.current(text);
@@ -83,6 +103,7 @@ export function QrScanner({ onCode }: { onCode: (text: string) => void }) {
     return () => {
       stopped = true;
       if (timer) clearTimeout(timer);
+      worker?.terminate();
       stream?.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -106,7 +127,7 @@ export function QrScanner({ onCode }: { onCode: (text: string) => void }) {
         <div className="aspect-square h-3/5 rounded-3xl border-8 border-white/80" />
       </div>
       <div className="absolute left-3 top-3 flex items-center gap-2 rounded-xl bg-ink/80 px-4 py-2 text-2xl font-bold text-white">
-        <QrCode className="size-8" /> Show QR
+        <QrCode className="size-8" /> {label}
       </div>
     </div>
   );

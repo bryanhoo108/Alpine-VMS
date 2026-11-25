@@ -128,12 +128,12 @@ describe('demo day', () => {
     const t = await get(`/api/trips/${await tripId('WRC6630')}/timeline`);
     const last = t.events.at(-1);
     expect(last).toMatchObject({ kind: 'gate_out', tone: 'bad' });
-    expect(last.detail).toContain('card NOT returned');
+    expect(last.detail).toContain('pass NOT returned');
     expect(
       t.events
         .filter((e: { kind: string }) => e.kind === 'alert')
         .map((e: { title: string }) => e.title),
-    ).toEqual(expect.arrayContaining(['Alert: No check', 'Alert: No DO', 'Alert: No card']));
+    ).toEqual(expect.arrayContaining(['Alert: No check', 'Alert: No DO', 'Alert: No pass']));
   });
 
   it('leaves the shared-SDO DO for the clerk', async () => {

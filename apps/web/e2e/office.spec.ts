@@ -105,6 +105,20 @@ test('clerk pre-registers a truck and the guard sees it auto-match at the gate',
   await expect(page.getByTestId('prereg-chip')).toContainText('SDO PL26110634');
 });
 
+test('clerk prints the gate pass sheet', async ({ page }) => {
+  await officeLogin(page);
+  await page.getByRole('tab', { name: /Pre-registered/ }).click();
+  await expect(page.getByTestId('pass-stock')).toContainText('60 free');
+  await page.getByRole('button', { name: 'Print sheet' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Gate pass sheet' });
+  await expect(sheet.getByTestId('gate-pass')).toHaveCount(60);
+  await expect(sheet.getByRole('img', { name: 'QR for gate pass GP0001' })).toBeVisible();
+  await expectNoSidewaysOverflow(page);
+  await page.screenshot(shot('7-pass-sheet'));
+  await sheet.getByRole('button', { name: 'Close' }).click();
+  await expect(sheet).toHaveCount(0);
+});
+
 test('alerts tab shows red first and clears with a reason', async ({ page }) => {
   await signInWithPin(page, 'Entry Guard');
   await gateIn(page, 'BQL 1187'); // watchlist
@@ -130,7 +144,7 @@ test('supervisor switches between Live, Office, Check, Gate Out and Gate In', as
   await expectNoSidewaysOverflow(page);
   await page.screenshot(shot('5-supervisor'));
   await page.getByRole('button', { name: 'Check', pressed: false }).click();
-  await expect(page.getByText('Tap card')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Scan QR' })).toBeVisible();
   await page.getByRole('button', { name: 'Out', exact: true, pressed: false }).click();
   await expect(page.getByRole('heading', { name: 'Gate Out' })).toBeAttached();
   await page.getByRole('button', { name: 'In', exact: true, pressed: false }).click();

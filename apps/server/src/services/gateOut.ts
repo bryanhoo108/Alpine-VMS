@@ -95,7 +95,7 @@ export interface ExitTruck {
   type: 'outbound' | 'inbound';
   transporterName: string | null;
   gateInAt: Date;
-  /** Status if the card comes back; "No card" adds a red reason. */
+  /** Status if the card comes back; "No pass" adds a red reason. */
   status: ExitStatus;
 }
 
@@ -206,7 +206,7 @@ export interface GateOutInput {
   tripId: string;
   /** Exit camera read of this truck, if any. */
   plateReadId: string | null;
-  /** The card handed back, or null when the guard taps "No card". */
+  /** The card handed back, or null when the guard taps "No pass". */
   cardNo: string | null;
 }
 
@@ -232,7 +232,7 @@ export async function gateOut(deps: ServiceDeps, site: Site, userId: string, inp
         { cardNo: handed.cardNo, status: handed.status, currentTripId: handed.currentTripId },
         trip.id,
       );
-      // A card from another truck: the guard taps the right one or "No card".
+      // A card from another truck: the guard taps the right one or "No pass".
       if (!collected.ok) throw conflict(collected.error);
       await tx
         .update(cards)

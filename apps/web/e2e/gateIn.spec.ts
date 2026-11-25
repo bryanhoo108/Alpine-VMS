@@ -20,7 +20,7 @@ test('pre-registered truck: Collect, 2 photos, card tap', async ({ page }) => {
   await page.screenshot(shot('2-plate'));
 
   await page.getByRole('button', { name: 'Collect' }).click(); // tap 1
-  await expect(page.getByText('Tap card')).toBeVisible();
+  await expect(page.getByText('Photos first')).toBeVisible();
   await page.getByRole('button', { name: 'Photo' }).click(); // tap 2 (IC)
   await expect(page.getByTestId('count-ic')).toHaveText('1');
   // The IC is read on the server, offline: only the last 4 digits come back.
@@ -28,11 +28,15 @@ test('pre-registered truck: Collect, 2 photos, card tap', async ({ page }) => {
   await expect(ic).toContainText('••••••-••-5678', { timeout: 15_000 });
   await expect(ic).toContainText('SAMPLE DRIVER BIN DEMO');
   await page.getByRole('button', { name: 'Photo' }).click(); // tap 3 (documents)
-  await expect(page.getByTestId('count-doc')).toHaveText('1');
+  // Photos done: the camera now reads the driver's gate pass QR.
+  await expect(page.getByText('Scan pass').first()).toBeVisible();
+  await expect(page.getByText('Give the driver a gate pass')).toBeVisible();
   await expectGuardLayout(page);
   await page.screenshot(shot('3-photos'));
+  await page.getByRole('button', { name: 'More photos' }).click();
+  await expect(page.getByTestId('count-doc')).toHaveText('1');
 
-  await page.getByRole('button', { name: 'Test card' }).click(); // driver taps card
+  await page.getByRole('button', { name: 'Test pass' }).click(); // driver taps card
   const done = page.getByTestId('gate-in-done');
   await expect(done).toContainText('IN');
   await expect(done).toContainText(/T-\d{6}-001/);
@@ -76,7 +80,7 @@ test('camera misread: guard picks from the pre-registered list', async ({ page }
   await expect(page.getByTestId('plate-text')).toHaveText('BPN 2045');
   await expect(page.getByTestId('prereg-chip')).toContainText('SDO PL26110678, PL26110679');
   await page.getByRole('button', { name: 'Collect' }).click();
-  await page.getByRole('button', { name: 'Test card' }).click();
+  await page.getByRole('button', { name: 'Test pass' }).click();
   await expect(page.getByTestId('gate-in-done')).toContainText('SDO PL26110678, PL26110679');
 });
 
@@ -87,7 +91,7 @@ test('new truck, first visit: pick company, Deliver (coil)', async ({ page }) =>
   await expectGuardLayout(page);
   await page.screenshot(shot('7-company'));
   await page.getByRole('button', { name: 'Transporter Two Haulage' }).click();
-  await page.getByRole('button', { name: 'Test card' }).click();
+  await page.getByRole('button', { name: 'Test pass' }).click();
   await expect(page.getByTestId('gate-in-done')).toContainText('VBA 5521');
 });
 
@@ -122,8 +126,8 @@ test('a card already in use asks for another card', async ({ page }) => {
   await page.keyboard.type(cardNo, { delay: 5 });
   await page.keyboard.press('Enter');
   const alert = page.getByRole('alert');
-  await expect(alert).toContainText('Use another card');
-  await expect(alert).toContainText('Card in use');
+  await expect(alert).toContainText('Use another pass');
+  await expect(alert).toContainText('Pass in use');
   await expectGuardLayout(page);
   await page.screenshot(shot('9-card-in-use'));
 });

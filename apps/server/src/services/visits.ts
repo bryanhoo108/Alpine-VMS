@@ -395,7 +395,7 @@ export async function visitExitByCard(deps: ServiceDeps, site: Site, rawCardNo: 
 
 export interface VisitGateOutInput {
   visitId: string;
-  /** The card handed back, or null when the guard taps "No card". */
+  /** The card handed back, or null when the guard taps "No pass". */
   cardNo: string | null;
   /** Exit camera read of their car, if any. */
   plateReadId: string | null;

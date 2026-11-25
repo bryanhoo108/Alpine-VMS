@@ -101,7 +101,7 @@ test('everything done: green Go, card tap, OUT', async ({ page }) => {
   await expectGuardLayout(page);
   await page.screenshot(shot('2-green'));
 
-  await page.getByRole('button', { name: 'Test card' }).click();
+  await page.getByRole('button', { name: 'Test pass' }).click();
   const done = page.getByTestId('gate-out-done');
   await expect(done).toHaveAttribute('data-level', 'green');
   await expect(done).toContainText('OUT');
@@ -109,7 +109,7 @@ test('everything done: green Go, card tap, OUT', async ({ page }) => {
   await expect(page.getByText('Waiting for truck')).toBeVisible();
 });
 
-test('not checked, no DO: red with reasons; No card needs a second tap', async ({ page }) => {
+test('not checked, no DO: red with reasons; No pass needs a second tap', async ({ page }) => {
   await truckReady(page, 'BJR 9102', { sdoNos: ['PL26110702'] });
   await exitGuard(page);
   await cameraSees(page, 'BJR 9102', 'exit');
@@ -120,14 +120,14 @@ test('not checked, no DO: red with reasons; No card needs a second tap', async (
   await expectGuardLayout(page);
   await page.screenshot(shot('3-red'));
 
-  await page.getByRole('button', { name: 'No card' }).click();
-  await expect(page.getByText('No card?')).toBeVisible();
+  await page.getByRole('button', { name: 'No pass' }).click();
+  await expect(page.getByText('No pass?')).toBeVisible();
   await expectGuardLayout(page);
   await page.screenshot(shot('4-no-card'));
-  await page.getByRole('button', { name: 'Yes, no card' }).click();
+  await page.getByRole('button', { name: 'Yes, no pass' }).click();
   const done = page.getByTestId('gate-out-done');
   await expect(done).toHaveAttribute('data-level', 'red');
-  await expect(done).toContainText('No card');
+  await expect(done).toContainText('No pass');
 });
 
 test('misread plate: Not inside, guard picks the truck', async ({ page }) => {
@@ -144,7 +144,7 @@ test('misread plate: Not inside, guard picks the truck', async ({ page }) => {
     .getByRole('button', { name: /WRC 6630/ })
     .click();
   await expect(page.getByTestId('exit-status')).toHaveAttribute('data-level', 'green');
-  await page.getByRole('button', { name: 'Test card' }).click();
+  await page.getByRole('button', { name: 'Test pass' }).click();
   await expect(page.getByTestId('gate-out-done')).toContainText('WRC 6630');
 });
 
@@ -166,7 +166,7 @@ test("another truck's card is refused", async ({ page }) => {
   await expect(page.getByTestId('exit-status')).toHaveAttribute('data-level', 'amber');
   await page.keyboard.type(other.cardNo, { delay: 5 });
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('alert')).toContainText('Wrong card');
+  await expect(page.getByRole('alert')).toContainText('Wrong pass');
   await expectGuardLayout(page);
   await page.screenshot(shot('6-wrong-card'));
 });

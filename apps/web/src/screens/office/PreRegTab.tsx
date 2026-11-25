@@ -2,6 +2,7 @@ import { Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { api, ApiError, type OfficeLists, type PreRegRow } from '../../api';
 import { formatPlate, normalizePlate } from '../../plate';
+import { GatePassesCard } from './GatePasses';
 import { Button, Card, Chip, inputClass, ReasonForm } from './ui';
 
 const STATUS = {
@@ -28,7 +29,10 @@ export function PreRegTab({
     // Phone/tablet portrait: one scrolling column. PC: two columns that scroll on their own.
     <div className="h-full min-h-0 space-y-3 overflow-y-auto lg:grid lg:grid-cols-[minmax(340px,2fr)_minmax(0,3fr)] lg:gap-3 lg:space-y-0 lg:overflow-hidden">
       <div className="lg:min-h-0 lg:overflow-y-auto">
-        {lists && <NewPreReg lists={lists} onCreated={onChanged} />}
+        <div className="space-y-3">
+          {lists && <NewPreReg lists={lists} onCreated={onChanged} />}
+          <GatePassesCard />
+        </div>
       </div>
       <div className="lg:min-h-0 lg:overflow-y-auto">
         <Card title="Pre-registered trucks">
@@ -99,7 +103,11 @@ function NewPreReg({ lists, onCreated }: { lists: OfficeLists; onCreated: () => 
     const q = search.trim().toLowerCase();
     const all = lists.openSdos;
     return (
-      q ? all.filter((s) => s.sdoNo.includes(q) || s.customerName.toLowerCase().includes(q)) : all
+      q
+        ? all.filter(
+            (s) => s.sdoNo.toLowerCase().includes(q) || s.customerName.toLowerCase().includes(q),
+          )
+        : all
     ).slice(0, 8);
   }, [lists, search]);
 
@@ -166,7 +174,7 @@ function NewPreReg({ lists, onCreated }: { lists: OfficeLists; onCreated: () => 
             ))}
           </select>
         </label>
-        <fieldset className="flex flex-col gap-1">
+        <fieldset className="flex min-w-0 flex-col gap-1">
           <legend className="font-semibold">SDO(s)</legend>
           {sdoNos.length > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -185,7 +193,7 @@ function NewPreReg({ lists, onCreated }: { lists: OfficeLists; onCreated: () => 
           <label className="flex items-center gap-2">
             <Search className="size-5 text-muted" />
             <input
-              className={`${inputClass} flex-1`}
+              className={`${inputClass} min-w-0 flex-1`}
               placeholder="SDO number or customer"
               aria-label="Search SDOs"
               value={search}
@@ -206,8 +214,8 @@ function NewPreReg({ lists, onCreated }: { lists: OfficeLists; onCreated: () => 
                       )
                     }
                   />
-                  <span className="font-bold">SDO {s.sdoNo}</span>
-                  <span className="truncate text-muted">{s.customerName}</span>
+                  <span className="shrink-0 font-bold">SDO {s.sdoNo}</span>
+                  <span className="min-w-0 truncate text-muted">{s.customerName}</span>
                 </label>
               </li>
             ))}

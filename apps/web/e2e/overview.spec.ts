@@ -95,7 +95,7 @@ test('clerk looks back at a truck that left today', async ({ page }) => {
   const panel = page.getByTestId('trip-panel');
   const timeline = panel.getByRole('list', { name: 'Timeline' });
   await expect(timeline).toContainText('Gate out');
-  await expect(timeline).toContainText('card NOT returned');
+  await expect(timeline).toContainText('pass NOT returned');
   // Truck has left: nothing to change any more.
   await expect(panel.getByRole('button', { name: /Remove SDO/ })).toHaveCount(0);
   await expectNoSidewaysOverflow(page);

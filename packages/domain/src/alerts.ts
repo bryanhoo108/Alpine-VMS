@@ -23,7 +23,7 @@ export const ALERTS = {
   // Not in the spec table; red by decision, see docs/decisions.md (Q4).
   EXIT_NO_SDO: { level: 'red', notify: ['supervisor'], label: 'No SDO' },
   EXIT_NO_WEIGH_OUT: { level: 'amber', notify: ['supervisor'], label: 'No weigh-out' },
-  CARD_NOT_RETURNED: { level: 'red', notify: ['supervisor'], label: 'No card' },
+  CARD_NOT_RETURNED: { level: 'red', notify: ['supervisor'], label: 'No pass' },
   // Weighbridge
   PLATE_MISMATCH: { level: 'amber', notify: ['supervisor'], label: 'Plate differs' },
   // Checker

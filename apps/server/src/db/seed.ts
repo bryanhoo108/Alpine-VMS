@@ -26,8 +26,8 @@ import {
 export const CARD_POOL_SIZE = 60;
 
 /** Sample card serial numbers (7-byte NFC UIDs as hex). */
-export const sampleCardNo = (i: number) =>
-  `04A1B2C3${i.toString(16).toUpperCase().padStart(6, '0')}`;
+/** Sample QR gate passes: GP0001, GP0002, … (decision G1). */
+export const sampleCardNo = (i: number) => `GP${String(i).padStart(4, '0')}`;
 
 const DEMO_USERS = [
   { username: 'guard.entry', displayName: 'Entry Guard', role: 'guard', secret: 'pin' },
