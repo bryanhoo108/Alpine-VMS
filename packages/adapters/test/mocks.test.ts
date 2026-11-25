@@ -149,10 +149,9 @@ describe('MockSapAdapter sample scenarios', () => {
 describe('MockCwisAdapter', () => {
   it('keeps several SDOs on one ticket when the operator enters them', () => {
     const cwis = new MockCwisAdapter({ now });
-    expect(cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['PL26110678', 'PL26110679'] }).sdoNos).toEqual([
-      'PL26110678',
-      'PL26110679',
-    ]);
+    expect(
+      cwis.weighIn({ plate: 'WVT 3388', sdoNos: ['PL26110678', 'PL26110679'] }).sdoNos,
+    ).toEqual(['PL26110678', 'PL26110679']);
   });
 
   it('fills the ticket from the pending truck when the card is tapped (option A)', async () => {

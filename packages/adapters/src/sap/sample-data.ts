@@ -133,7 +133,13 @@ export function sapSampleData(now: Date): SapSampleData {
       customerCode: 'C0001',
       createdAt: daysAgo(1, 10),
       lines: [
-        { lineNo: 0, itemCode: ITEMS.gi50.itemCode, pieces: 200, baseSdoNo: 'PL26090245', baseLineNo: 0 },
+        {
+          lineNo: 0,
+          itemCode: ITEMS.gi50.itemCode,
+          pieces: 200,
+          baseSdoNo: 'PL26090245',
+          baseLineNo: 0,
+        },
       ],
     },
     {
@@ -141,7 +147,13 @@ export function sapSampleData(now: Date): SapSampleData {
       customerCode: 'C0001',
       createdAt: daysAgo(1, 15),
       lines: [
-        { lineNo: 0, itemCode: ITEMS.gi25.itemCode, pieces: 300, baseSdoNo: 'PL26090245', baseLineNo: 1 },
+        {
+          lineNo: 0,
+          itemCode: ITEMS.gi25.itemCode,
+          pieces: 300,
+          baseSdoNo: 'PL26090245',
+          baseLineNo: 1,
+        },
       ],
     },
     {
@@ -149,8 +161,20 @@ export function sapSampleData(now: Date): SapSampleData {
       customerCode: 'C0002',
       createdAt: daysAgo(1, 11),
       lines: [
-        { lineNo: 0, itemCode: ITEMS.gi80h.itemCode, pieces: 60, baseSdoNo: 'PL26100318', baseLineNo: 0 },
-        { lineNo: 1, itemCode: ITEMS.ms100.itemCode, pieces: 40, baseSdoNo: 'PL26100322', baseLineNo: 0 },
+        {
+          lineNo: 0,
+          itemCode: ITEMS.gi80h.itemCode,
+          pieces: 60,
+          baseSdoNo: 'PL26100318',
+          baseLineNo: 0,
+        },
+        {
+          lineNo: 1,
+          itemCode: ITEMS.ms100.itemCode,
+          pieces: 40,
+          baseSdoNo: 'PL26100322',
+          baseLineNo: 0,
+        },
       ],
     },
   ];
