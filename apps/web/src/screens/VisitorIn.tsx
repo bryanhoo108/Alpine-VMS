@@ -455,7 +455,11 @@ export function VisitorIn({
         <TypeIcon type={result.visit.type} className="size-14" />
         {result.visit.name}
       </div>
-      {others > 0 && <div className="text-4xl font-extrabold">+ {others} people</div>}
+      {others > 0 && (
+        <div className="text-4xl font-extrabold">
+          + {others} {others === 1 ? 'person' : 'people'}
+        </div>
+      )}
       <div className="text-2xl font-bold">
         {result.visit.visitNo}
         {result.visit.host ? ` · host ${result.visit.host}` : ''}

@@ -85,7 +85,8 @@ export function MusterPanel({ onClose }: { onClose: () => void }) {
         <>
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             <h3 className="mb-2 text-lg font-extrabold text-bad">
-              Not seen yet ({muster.people - muster.safePeople} people)
+              Not seen yet ({muster.people - muster.safePeople}{' '}
+              {muster.people - muster.safePeople === 1 ? 'person' : 'people'})
             </h3>
             <ul
               className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
@@ -98,7 +99,7 @@ export function MusterPanel({ onClose }: { onClose: () => void }) {
             {safe.length > 0 && (
               <>
                 <h3 className="mb-2 text-lg font-extrabold text-ok">
-                  Safe ({muster.safePeople} people)
+                  Safe ({muster.safePeople} {muster.safePeople === 1 ? 'person' : 'people'})
                 </h3>
                 <ul
                   className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"

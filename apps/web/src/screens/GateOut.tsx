@@ -343,7 +343,11 @@ export function GateOut({ mock }: { mock: boolean }) {
           <PersonIcon type={visitResult.visit.type} className="size-14" />
           {visitResult.visit.name}
         </div>
-        {others > 0 && <div className="text-4xl font-extrabold">+ {others} people</div>}
+        {others > 0 && (
+          <div className="text-4xl font-extrabold">
+            + {others} {others === 1 ? 'person' : 'people'}
+          </div>
+        )}
         <div className="text-3xl font-bold">{visitResult.visit.visitNo}</div>
         {shown.length > 0 && (
           <div className="px-4 text-center text-3xl font-extrabold">

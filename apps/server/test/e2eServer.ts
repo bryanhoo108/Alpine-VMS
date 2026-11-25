@@ -22,7 +22,11 @@ const t = await createTestDb();
 const adapterConfig = adapterConfigFromEnv({});
 // Demo clock, so "Restart day" on the Live screen can backdate its trucks.
 const adapters = createAdapters({ ...adapterConfig, now: demoClock.now });
-const config = testConfig(t.url, { WEB_DIR: new URL('../../web/dist', import.meta.url).pathname });
+const config = testConfig(t.url, {
+  WEB_DIR: new URL('../../web/dist', import.meta.url).pathname,
+  // Recording the demo video runs with DO_TRACKING=off; browser tests leave it on.
+  ...(process.env.DO_TRACKING ? { DO_TRACKING: process.env.DO_TRACKING } : {}),
+});
 const reseed = async () => {
   adapters.mocks.sap!.reset();
   adapters.mocks.cwis!.reset();

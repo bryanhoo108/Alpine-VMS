@@ -72,7 +72,11 @@ export function VisitorsTab({
                     <UserRound className="size-5 text-blue-800" aria-label="Visitor" />
                   )}
                   <span className="text-lg font-black">{inv.name}</span>
-                  {inv.groupSize > 1 && <Chip tone="info">+{inv.groupSize - 1} people</Chip>}
+                  {inv.groupSize > 1 && (
+                    <Chip tone="info">
+                      +{inv.groupSize - 1} {inv.groupSize === 2 ? 'person' : 'people'}
+                    </Chip>
+                  )}
                   {inv.insideVisitId ? (
                     <Chip tone="ok">Inside</Chip>
                   ) : (
