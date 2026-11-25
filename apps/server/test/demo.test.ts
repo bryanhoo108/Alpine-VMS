@@ -25,6 +25,7 @@ interface Inside {
   level: string;
   reasons: string[];
   openAlert: string | null;
+  stay?: string;
 }
 
 describe('demo day', () => {
@@ -38,7 +39,7 @@ describe('demo day', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it('builds 6 trucks that left and 9 inside, each in a different situation', async () => {
+  it('builds 6 trucks that left and 10 inside, each in a different situation', async () => {
     const res = await h.app.inject({
       method: 'POST',
       url: '/api/dev/demo/reset',
@@ -47,9 +48,9 @@ describe('demo day', () => {
     expect(res.statusCode).toBe(200);
     const o = await get('/api/overview');
     expect(o.today).toMatchObject({
-      in: 15,
+      in: 16,
       out: 6,
-      inside: 9,
+      inside: 10,
       exits: { green: 3, amber: 2, red: 1 },
     });
     expect(o.today.avgMinutesInside).toBeGreaterThan(30);
@@ -65,6 +66,10 @@ describe('demo day', () => {
     expect(by('BPN 3301')).toMatchObject({ stage: 'Rejected', openAlert: 'red' });
     expect(by('BJR 4410')).toMatchObject({ stage: 'Waiting weigh-in' });
     expect(by('BQL 1187')).toMatchObject({ openAlert: 'red' });
+    // Long stay (decision G4): over 2 h amber, over 4 h red, with an alert.
+    expect(by('BQA 7701')).toMatchObject({ stay: 'amber' });
+    expect(by('VBA 5544')).toMatchObject({ stay: 'red', openAlert: 'red' });
+    expect(by('BPN 3301')).toMatchObject({ stay: 'ok' });
 
     // SAP and CWIS have caught up; the presenter's pre-registrations are still open.
     expect(o.integrations).toMatchObject({ sapWaiting: 0, cwisWaiting: 0 });
@@ -100,8 +105,8 @@ describe('demo day', () => {
   it('has visitor and contractor groups: 3 inside (9 people), 2 that left', async () => {
     const people = await get('/api/people');
     expect(people.headcount).toEqual({
-      total: 18,
-      truckDrivers: 9,
+      total: 19,
+      truckDrivers: 10,
       visitors: 4,
       contractors: 5,
     });
@@ -161,7 +166,7 @@ describe('demo day', () => {
       headers: { cookie: supervisor },
     });
     const o = await get('/api/overview');
-    expect(o.today).toMatchObject({ in: 15, out: 6, inside: 9 });
+    expect(o.today).toMatchObject({ in: 16, out: 6, inside: 10 });
     expect(await h.login('guard.entry')).toContain('vms_session=');
   });
 });

@@ -3,6 +3,7 @@
  * trucks inside now with their stage, today's in/out and time inside, exits
  * by colour, open alerts, and whether SAP and CWIS are keeping up.
  */
+import { stayLevel } from '@vms/domain';
 import { and, eq, inArray, isNotNull, min, sql, count } from 'drizzle-orm';
 import { cwisPushes, sapWrites, trips } from '../db/schema.js';
 import { siteDate } from '../time.js';
@@ -77,6 +78,12 @@ export async function overview(deps: ServiceDeps, site: Site) {
           Math.round((now.getTime() - new Date(t.gateInAt).getTime()) / 60_000),
         ),
         stage: stageOf(t, deps.config.doTracking),
+        /** Long stay flag (decision G4). */
+        stay: stayLevel(
+          Math.max(0, (now.getTime() - new Date(t.gateInAt).getTime()) / 60_000),
+          deps.config.longStay,
+        ),
+        gateInAt: t.gateInAt,
         /** Colour the truck would get at the exit right now. */
         level: status.level,
         reasons: status.reasons.filter((r) => r.level !== 'logged').map((r) => r.label),
@@ -133,6 +140,7 @@ export async function overview(deps: ServiceDeps, site: Site) {
       },
     },
     stages,
+    longStay: deps.config.longStay,
     inside: insideView,
     openAlerts: (await openAlerts(deps, site)).slice(0, 10),
     integrations: {

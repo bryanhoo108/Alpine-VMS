@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Siren,
   Square,
+  Timer,
   Truck,
   UserRound,
   UsersRound,
@@ -66,10 +67,15 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
   const [muster, setMuster] = useState(false);
   const [musterOn, setMusterOn] = useState(false);
 
+  // Server clock minus this device's, so timers match the server.
+  const [offsetMs, setOffsetMs] = useState(0);
   const load = useCallback(() => {
     api
       .get<OverviewData>('/api/overview')
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setOffsetMs(new Date(d.at).getTime() - Date.now());
+      })
       .catch(() => undefined);
     api
       .get<People>('/api/people')
@@ -222,9 +228,12 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
-                      <span className="order-last ml-auto font-mono text-sm font-bold tabular-nums sm:order-none">
-                        {hm(x.minutesInside)}
-                      </span>
+                      <StayTimer
+                        gateInAt={x.gateInAt}
+                        minutesInside={x.minutesInside}
+                        offsetMs={offsetMs}
+                        limits={data.longStay}
+                      />
                     </button>
                   </li>
                 ))}
@@ -306,6 +315,55 @@ export function Overview({ demoControls }: { demoControls: boolean }) {
       )}
       {open && <TimelineDialog tripId={open} onClose={() => setOpen(null)} />}
     </div>
+  );
+}
+
+/** Running time inside for one truck; amber or red past the long-stay limits. */
+function StayTimer({
+  gateInAt,
+  minutesInside,
+  offsetMs,
+  limits,
+}: {
+  gateInAt?: string;
+  minutesInside: number;
+  offsetMs: number;
+  limits?: { amberMinutes: number; redMinutes: number };
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const seconds = gateInAt
+    ? Math.max(0, Math.floor((now + offsetMs - new Date(gateInAt).getTime()) / 1000))
+    : minutesInside * 60;
+  const minutes = seconds / 60;
+  const level =
+    limits && minutes >= limits.redMinutes
+      ? 'red'
+      : limits && minutes >= limits.amberMinutes
+        ? 'amber'
+        : 'ok';
+  const text = `${Math.floor(seconds / 3600)}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  const tone = {
+    ok: 'text-ink',
+    amber: 'bg-warn text-white',
+    red: 'bg-bad text-white animate-pulse',
+  }[level];
+  return (
+    <span
+      data-testid="stay-timer"
+      data-level={level}
+      className={`order-last ml-auto inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-sm font-bold tabular-nums sm:order-none ${tone}`}
+      title={level === 'ok' ? 'Time inside' : level === 'red' ? 'Too long inside' : 'Long stay'}
+    >
+      <Timer className="size-4" aria-hidden />
+      {text}
+      {level !== 'ok' && (
+        <span className="font-sans">{level === 'red' ? 'Too long' : 'Long stay'}</span>
+      )}
+    </span>
   );
 }
 

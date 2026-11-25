@@ -34,7 +34,14 @@ test('supervisor sees the live overview of a busy day and a truck timeline', asy
 
   await expect(page.getByTestId('exits')).toHaveText(/3\s*2\s*1/);
   const inside = page.getByRole('list', { name: 'Trucks inside' });
-  await expect(inside.getByRole('listitem')).toHaveCount(9);
+  await expect(inside.getByRole('listitem')).toHaveCount(10);
+  // Live timers: over 2 h amber "Long stay", over 4 h red "Too long" (decision G4).
+  const stuck = inside.getByRole('listitem').filter({ hasText: 'VBA 5544' });
+  await expect(stuck.getByTestId('stay-timer')).toHaveAttribute('data-level', 'red');
+  await expect(stuck.getByTestId('stay-timer')).toContainText(/4:\d\d:\d\d/);
+  const amber = inside.getByRole('listitem').filter({ hasText: 'BQA 7701' });
+  await expect(amber.getByTestId('stay-timer')).toHaveAttribute('data-level', 'amber');
+  await expect(page.getByRole('list', { name: 'Open alerts' })).toContainText('Too long inside');
   await expect(inside).toContainText('Ready to go');
   await expect(inside).toContainText('Not matched');
   await expect(page.getByRole('list', { name: 'Open alerts' })).toContainText('BQL 1187');
@@ -107,6 +114,6 @@ test('clerk looks back at a truck that left today', async ({ page }) => {
   // Demo controls are for the supervisor only.
   await expect(page.getByRole('button', { name: 'Restart day' })).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Trucks inside' }).getByRole('listitem')).toHaveCount(
-    9,
+    10,
   );
 });

@@ -11,3 +11,4 @@ export * from './sdoShortlist.js';
 export * from './checker.js';
 export * from './visits.js';
 export * from './mykad.js';
+export * from './longStay.js';

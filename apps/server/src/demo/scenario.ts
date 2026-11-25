@@ -8,6 +8,7 @@
  * WXY 1234 (SDO PL26110612), BPN 2045 (PL26110678, PL26110679) and BMK 7710 (PL26110641, late), and
  * the invites DEMV2345 (visitor) and DEMC6789 (contractor crew of 4).
  */
+import { checkLongStays } from '../services/longStay.js';
 import { sql } from 'drizzle-orm';
 import { seedSampleData } from '../db/seed.js';
 import { refreshSdoCache } from '../services/sdoCache.js';
@@ -165,6 +166,9 @@ function story(c: DemoContext, u: DemoUsers): Step[] {
     inn(50, 'BJR 4411', 'outbound', 'T0002'),
     at(46, () => match(c, u, id('BJR 4411'), ['PL26090245'])),
     at(30, () => makeDo(c, ['PL26090245'])),
+    // 16. Coil truck stuck since the morning, never weighed out: red "Too long inside".
+    inn(268, 'VBA 5544', 'inbound', 'T0003'),
+    at(262, () => weighIn(c, id('VBA 5544'))),
     // 15. Watchlisted plate came in: red alert open.
     inn(20, 'BQL 1187', 'outbound', 'T0004'),
 
@@ -251,6 +255,8 @@ export async function buildDemoDay(
       await step.run();
       await flush(c);
     }
+    // Trucks inside past 2 h / 4 h get their long-stay alerts now (decision G4).
+    await checkLongStays(c, c.site);
   } finally {
     demoClock.override = null;
     c.jobRunner?.resume();

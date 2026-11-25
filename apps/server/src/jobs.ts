@@ -4,6 +4,7 @@
  * the job simply runs again next time. The gate never waits on any of them.
  */
 import { pollCwisTickets, sendCwisPushes } from './services/cwis.js';
+import { checkLongStays } from './services/longStay.js';
 import { discoverDos, sendSapWrites } from './services/dos.js';
 import { syncTransporters } from './services/businessPartners.js';
 import type { ServiceDeps } from './services/deps.js';
@@ -39,6 +40,7 @@ export function defineJobs(deps: ServiceDeps & { files: FileStore }, site: Site)
       ? [{ name: 'do-discovery', everyMs: 2 * 60_000, run: () => discoverDos(deps, site) }]
       : []),
     { name: 'sap-writes', everyMs: 15_000, run: () => sendSapWrites(deps, site) },
+    { name: 'long-stay', everyMs: 60_000, run: () => checkLongStays(deps, site) },
     {
       name: 'transporter-sync',
       everyMs: 60 * 60_000,

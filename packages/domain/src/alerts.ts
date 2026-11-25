@@ -37,6 +37,9 @@ export const ALERTS = {
   // Visitors and contractors (decisions V3, V8)
   HOST_NOT_CONFIRMED: { level: 'amber', notify: ['supervisor'], label: 'No host OK' },
   VISIT_OVERSTAY: { level: 'amber', notify: ['supervisor'], label: 'Stayed late' },
+  // Long stay inside (decision G4)
+  LONG_STAY: { level: 'amber', notify: ['supervisor'], label: 'Long stay' },
+  LONG_STAY_RED: { level: 'red', notify: ['supervisor'], label: 'Too long inside' },
 } as const satisfies Record<string, AlertDefinition>;
 
 export type AlertType = keyof typeof ALERTS;

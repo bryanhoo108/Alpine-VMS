@@ -353,6 +353,8 @@ export interface Overview {
     exits: { green: number; amber: number; red: number };
   };
   stages: Record<Stage, number>;
+  /** Long stay limits in minutes (decision G4). */
+  longStay?: { amberMinutes: number; redMinutes: number };
   inside: {
     id: string;
     tripNo: string;
@@ -361,6 +363,8 @@ export interface Overview {
     transporterName: string | null;
     sdoNos: string[];
     minutesInside: number;
+    gateInAt?: string;
+    stay?: 'ok' | 'amber' | 'red';
     stage: Stage;
     level: 'green' | 'amber' | 'red';
     reasons: string[];

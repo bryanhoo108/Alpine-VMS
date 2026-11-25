@@ -9,7 +9,8 @@ import {
   type MockLprAdapter,
   type MockSapAdapter,
 } from '@vms/adapters';
-import { and, asc, eq } from 'drizzle-orm';
+import { normalizeCardNo, parsePassQr } from '@vms/domain';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import type { AppContext } from '../app.js';
 import { requireRole } from '../auth/session.js';
@@ -153,6 +154,54 @@ export const devRoutes: FastifyPluginAsync<{ ctx: DevContext }> = async (app, { 
       const out = ctx.mocks.cwis.weighOut(ticket.ticketNo);
       await pollCwisTickets(ctx, ctx.site);
       return out;
+    },
+  );
+
+  // --- Simulated CWIS screen (mock only) --------------------------------------
+  // Stands in for the weighbridge PC in demos: what CWIS received from the VMS,
+  // and its tickets. The real CWIS has its own screens.
+
+  app.get('/api/dev/cwis/state', { preHandler: requireRole() }, async () => {
+    await sendCwisPushes(ctx, ctx.site);
+    return {
+      pending: ctx.mocks.cwis.pendingWithTime(),
+      tickets: ctx.mocks.cwis.ticketsWithWeights().slice(0, 12),
+    };
+  });
+
+  /**
+   * The operator scans a gate pass at the weighbridge: weigh in from the
+   * pending truck the VMS sent, or weigh out its open ticket.
+   */
+  app.post<{ Body: { cardNo: string } }>(
+    '/api/dev/cwis/scan',
+    {
+      preHandler: requireRole(),
+      schema: {
+        body: {
+          type: 'object',
+          required: ['cardNo'],
+          properties: { cardNo: { type: 'string', minLength: 1, maxLength: 64 } },
+        },
+      },
+    },
+    async (req) => {
+      const cardNo = normalizeCardNo(parsePassQr(req.body.cardNo) ?? req.body.cardNo);
+      await sendCwisPushes(ctx, ctx.site);
+      const [trip] = await ctx.db
+        .select({ tripNo: trips.tripNo, plate: trips.plateIn })
+        .from(trips)
+        .innerJoin(cards, eq(cards.id, trips.cardId))
+        .where(
+          and(eq(trips.siteId, ctx.site.id), eq(cards.cardNo, cardNo), isNull(trips.gateOutAt)),
+        );
+      if (!trip) throw notFound('CARD_NOT_ON_TRIP');
+      const open = ctx.mocks.cwis.openTicketForTrip(trip.tripNo);
+      const ticket = open
+        ? ctx.mocks.cwis.weighOut(open.ticketNo)
+        : ctx.mocks.cwis.weighIn({ plate: trip.plate, cardNo });
+      await pollCwisTickets(ctx, ctx.site);
+      return { action: open ? 'out' : 'in', ticket };
     },
   );
 

@@ -3,6 +3,7 @@ import { api, type Me, settings } from './api';
 import { DevPanel } from './components/DevPanel';
 import { Shell } from './components/Shell';
 import { Checker } from './screens/Checker';
+import { CwisSim } from './screens/CwisSim';
 import { GateIn } from './screens/GateIn';
 import { GateOut } from './screens/GateOut';
 import { Login } from './screens/Login';
@@ -10,7 +11,7 @@ import { Office } from './screens/office/Office';
 import { Overview } from './screens/Overview';
 import { Placeholder } from './screens/Placeholder';
 
-type View = 'gate-in' | 'gate-out' | 'office' | 'checker' | 'overview';
+type View = 'gate-in' | 'gate-out' | 'office' | 'checker' | 'overview' | 'cwis';
 
 /** Which screens each role may open; the first is the default. */
 const VIEWS: Record<Me['role'], View[]> = {
@@ -27,6 +28,7 @@ const TITLES: Record<View, string> = {
   office: 'Office',
   checker: 'Check',
   overview: 'Live overview',
+  cwis: 'CWIS (simulated)',
 };
 /** Short labels so five fit in the title bar on a phone. */
 const NAV: Record<View, string> = {
@@ -35,6 +37,7 @@ const NAV: Record<View, string> = {
   office: 'Office',
   checker: 'Check',
   overview: 'Live',
+  cwis: 'CWIS',
 };
 
 /** Each tablet remembers its post (entry or exit); a browser-only convenience. */
@@ -79,7 +82,11 @@ export function App() {
     }
   };
 
-  const allowed = VIEWS[me.role];
+  // The simulated weighbridge PC exists only with mock adapters (demos, training).
+  const allowed = [
+    ...VIEWS[me.role],
+    ...(mock && (me.role === 'supervisor' || me.role === 'admin') ? (['cwis'] as View[]) : []),
+  ];
   const current = view && allowed.includes(view) ? view : allowed[0];
   if (!current) {
     return (
@@ -99,6 +106,7 @@ export function App() {
       {current === 'gate-out' && <GateOut mock={mock} />}
       {current === 'office' && <Office mock={mock} />}
       {current === 'checker' && <Checker />}
+      {current === 'cwis' && <CwisSim />}
       {current === 'overview' && <Overview demoControls={mock && me.role !== 'clerk'} />}
       {mock && (current === 'gate-in' || current === 'gate-out') && (
         <DevPanel camera={current === 'gate-in' ? 'entry' : 'exit'} />

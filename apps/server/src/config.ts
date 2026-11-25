@@ -1,3 +1,4 @@
+import { parseLongStay, type LongStayLimits } from '@vms/domain';
 export interface Config {
   databaseUrl: string;
   host: string;
@@ -12,6 +13,8 @@ export interface Config {
    * are handled in SAP separately (DO_TRACKING=off).
    */
   doTracking: boolean;
+  /** Long stay inside (decision G4): amber and red after these minutes. */
+  longStay: LongStayLimits;
   /** Key for full IC numbers; without it only the last 4 digits are kept. */
   icEncryptionKey: string | null;
   /** HMAC key for session cookies; at least 32 characters. */
@@ -69,6 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     icPhotoRetentionDays: int(env, 'IC_PHOTO_RETENTION_DAYS', 90),
     icEncryptionKey: icKey(env),
     doTracking: (env.DO_TRACKING || 'on') !== 'off',
+    longStay: parseLongStay(env.LONG_STAY_AMBER_MINUTES, env.LONG_STAY_RED_MINUTES),
     sessionSecret,
     sessionHours: int(env, 'SESSION_HOURS', 14),
     webDir: env.WEB_DIR || null,
